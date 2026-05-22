@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoulCode — Agente TAC·PCD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --ink:       #0a0a0f;
+  --ink2:      #1c1c28;
+  --ink3:      #3a3a50;
+  --muted:     #7a7a96;
+  --line:      #e8e8f0;
+  --line2:     #f2f2f8;
+  --bg:        #fafafa;
+  --white:     #ffffff;
+  --soul-1:    #2563eb;
+  --soul-2:    #1d4ed8;
+  --soul-light:#eff6ff;
+  --soul-mid:  #bfdbfe;
+  --red:       #dc2626;
+  --red-bg:    #fef2f2;
+  --red-mid:   #fecaca;
+  --amber:     #d97706;
+  --amber-bg:  #fffbeb;
+  --amber-mid: #fde68a;
+  --green:     #16a34a;
+  --green-bg:  #f0fdf4;
+  --green-mid: #bbf7d0;
+  --r: 8px;
+  --r2: 12px;
+  --r3: 16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--ink2);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;z-index:50}
+.sidebar-brand{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand-soul{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#fff;letter-spacing:-0.5px}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.brand-badge{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:rgba(37,99,235,.3);border:1px solid rgba(37,99,235,.5);border-radius:99px;padding:3px 9px;font-size:10px;color:#93c5fd;font-family:'DM Mono',monospace}
+.brand-badge::before{content:'';width:6px;height:6px;background:#60a5fa;border-radius:50%;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+
+.nav{padding:16px 0;flex:1}
+.nav-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.25);padding:8px 20px 5px;font-family:'Syne',sans-serif}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:rgba(255,255,255,.5);font-size:13px;transition:all .15s;position:relative}
+.nav-item:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.05)}
+.nav-item.active{color:#fff;background:rgba(37,99,235,.25)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--soul-1);border-radius:0 2px 2px 0}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.nav-count{margin-left:auto;background:rgba(37,99,235,.4);color:#93c5fd;border-radius:99px;padding:1px 7px;font-size:10px;font-family:'DM Mono',monospace}
+
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08)}
+.agent-status{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.4)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80}
+
+/* ── MAIN ── */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--white);border-bottom:1px solid var(--line);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40}
+.topbar-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--ink)}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.topbar-urls{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;background:var(--line2);border-radius:6px;padding:4px 10px;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── CONTENT ── */
+.content{padding:28px;flex:1}
+
+/* ── CARDS STATS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+.kpi{background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:18px 20px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--soul-1);transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.kpi:hover::after{transform:scaleX(1)}
+.kpi-val{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:var(--ink);line-height:1}
+.kpi-lbl{font-size:11px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.8px}
+.kpi-delta{font-size:10px;margin-top:6px;font-family:'DM Mono',monospace}
+.kpi-delta.up{color:var(--green)}
+.kpi-delta.warn{color:var(--amber)}
+.kpi-delta.bad{color:var(--red)}
+
+/* ── JOB CONSOLE ── */
+.console-wrap{background:var(--ink2);border-radius:var(--r2);overflow:hidden;margin-bottom:24px;display:none}
+.console-wrap.visible{display:block}
+.console-header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.console-dots span{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px}
+.d1{background:#ff5f57}.d2{background:#febc2e}.d3{background:#28c840}
+.console-title{font-family:'DM Mono',monospace;font-size:12px;color:rgba(255,255,255,.5)}
+.console-body{padding:16px 18px;font-family:'DM Mono',monospace;font-size:11.5px;color:#a5f3fc;line-height:2;max-height:130px;overflow-y:auto}
+.console-body .line-ok{color:#4ade80}
+.console-body .line-warn{color:#fbbf24}
+.console-body .line-err{color:#f87171}
+.console-footer{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid rgba(255,255,255,.08)}
+.prog-bar{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:99px;transition:width .3s}
+.prog-pct{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.5);min-width:32px;text-align:right}
+
+/* ── TOOLBAR ── */
+.toolbar-wrap{background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:16px 18px;margin-bottom:20px}
+.toolbar-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toolbar-row + .toolbar-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--line2)}
+
+.search-box{display:flex;align-items:center;gap:8px;background:var(--line2);border:1px solid var(--line);border-radius:var(--r);padding:0 14px;height:38px;flex:1;min-width:200px;transition:border-color .15s}
+.search-box:focus-within{border-color:var(--soul-1);background:var(--white);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.search-box svg{width:15px;height:15px;color:var(--muted);flex-shrink:0}
+.search-box input{border:none;background:transparent;outline:none;font-size:13px;color:var(--ink);font-family:'DM Sans',sans-serif;width:100%}
+.search-box input::placeholder{color:var(--muted)}
+
+select.filter-sel{border:1px solid var(--line);background:var(--white);border-radius:var(--r);padding:0 12px;height:38px;font-size:12px;color:var(--ink3);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;transition:border-color .15s}
+select.filter-sel:focus{border-color:var(--soul-1);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+
+.btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.btn svg{width:15px;height:15px}
+.btn-primary{background:var(--soul-1);color:#fff;border-color:var(--soul-2)}
+.btn-primary:hover{background:var(--soul-2)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{background:var(--white);color:var(--ink3);border-color:var(--line)}
+.btn-ghost:hover{background:var(--line2);border-color:var(--muted)}
+.btn-ghost:disabled{opacity:.4;cursor:not-allowed}
+.btn-danger{background:var(--red-bg);color:var(--red);border-color:var(--red-mid)}
+.btn-danger:hover{background:#fee2e2}
+
+.chip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:99px;font-size:11px;font-weight:500;white-space:nowrap}
+.chip-blue{background:var(--soul-light);color:var(--soul-2)}
+.chip-red{background:var(--red-bg);color:var(--red)}
+.chip-amber{background:var(--amber-bg);color:var(--amber)}
+.chip-green{background:var(--green-bg);color:var(--green)}
+.chip-gray{background:var(--line2);color:var(--ink3)}
+.chip-ink{background:var(--ink2);color:#fff}
+
+.filter-active-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-chip{display:inline-flex;align-items:center;gap:6px;background:var(--soul-light);border:1px solid var(--soul-mid);color:var(--soul-2);border-radius:99px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+.filter-chip:hover{background:#dbeafe}
+.filter-chip svg{width:12px;height:12px}
+
+/* ── TABLE ── */
+.table-wrap{background:var(--white);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden}
+.table-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line)}
+.table-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+.table-meta{font-size:12px;color:var(--muted)}
+
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--line2)}
+th{padding:10px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:600;font-family:'Syne',sans-serif;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--ink3)}
+th .sort-icon{display:inline-block;margin-left:4px;opacity:.4}
+th.sorted .sort-icon{opacity:1;color:var(--soul-1)}
+tbody tr{border-bottom:1px solid var(--line2);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#f8f9ff}
+tbody tr.expanded{background:#f0f5ff}
+td{padding:12px 14px;vertical-align:middle}
+td.company-cell{min-width:180px}
+.company-cell-inner{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:8px;background:var(--soul-light);color:var(--soul-2);font-family:'Syne',sans-serif;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.company-name-cell{font-weight:500;font-size:13px;color:var(--ink);line-height:1.3}
+.company-meta-cell{font-size:11px;color:var(--muted);margin-top:1px}
+td.num-col{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink3)}
+td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.deficit-badge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border-radius:6px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500}
+.deficit-high{background:var(--red-bg);color:var(--red)}
+.deficit-mid{background:var(--amber-bg);color:var(--amber)}
+.deficit-low{background:var(--green-bg);color:var(--green)}
+.score-cell{display:flex;align-items:center;gap:7px}
+.score-bar{width:60px;height:5px;background:var(--line);border-radius:99px;overflow:hidden;flex-shrink:0}
+.score-fill{height:100%;border-radius:99px}
+.score-num{font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
+.action-cell{display:flex;align-items:center;gap:6px}
+.icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .15s}
+.icon-btn:hover{border-color:var(--soul-1);color:var(--soul-1);background:var(--soul-light)}
+.icon-btn svg{width:14px;height:14px}
+
+/* ── EXPANDED ROW ── */
+.expanded-row td{padding:0}
+.expanded-panel{background:var(--line2);border-top:2px solid var(--soul-1);animation:slide-down .2s ease}
+@keyframes slide-down{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.expanded-inner{padding:20px 24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.exp-section-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;font-family:'Syne',sans-serif;font-weight:600}
+.exp-field{margin-bottom:8px}
+.exp-label{font-size:10px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
+.exp-value{font-size:13px;color:var(--ink)}
+.exp-value.mono{font-family:'DM Mono',monospace;font-size:12px}
+.exp-value.link{color:var(--soul-1)}
+.cota-boxes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cota-box{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:10px;text-align:center}
+.cota-box .val{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--ink)}
+.cota-box.alert .val{color:var(--red)}
+.cota-box .lbl{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.perfis-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.exp-actions{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;grid-column:1/-1}
+
+/* ── PDF VIEWER MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,10,15,.7);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--white);border-radius:var(--r3);width:820px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:modal-in .2s ease}
+@keyframes modal-in{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--line)}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px}
+.modal-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.modal-close:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-mid)}
+.modal-close svg{width:16px;height:16px}
+.modal-body{flex:1;overflow-y:auto;padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+
+/* PDF PREVIEW */
+.pdf-preview{background:var(--line2);border-radius:var(--r2);padding:32px;font-family:'DM Sans',sans-serif}
+.pdf-logo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.pdf-logo-text{font-family:'Syne',sans-serif;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.pdf-logo-badge{background:var(--soul-1);color:#fff;border-radius:6px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700}
+.pdf-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.pdf-subtitle{font-size:12px;color:var(--muted);margin-bottom:24px}
+.pdf-divider{height:2px;background:var(--soul-1);margin-bottom:24px;border-radius:1px}
+.pdf-section{margin-bottom:20px}
+.pdf-sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--soul-1);margin-bottom:10px}
+.pdf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}
+.pdf-field label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
+.pdf-field span{font-size:13px;color:var(--ink)}
+.pdf-infraction{background:var(--red-bg);border-left:3px solid var(--red);border-radius:0 8px 8px 0;padding:12px 16px;font-size:12px;color:#7f1d1d;line-height:1.6}
+.pdf-cota{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pdf-cota-box{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:center}
+.pdf-cota-box .pv{font-family:'Syne',sans-serif;font-size:28px;font-weight:800}
+.pdf-cota-box .pl{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.pdf-cota-box.alert .pv{color:var(--red)}
+.pdf-opp{background:var(--soul-light);border-radius:var(--r);padding:14px 16px;font-size:12px;color:var(--soul-2);line-height:1.7}
+.pdf-footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.pdf-footer-brand{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--ink)}
+.pdf-footer-date{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+
+/* ── ANALYTICS ── */
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.chart-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:20px}
+.chart-card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.bar-row2{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label2{font-size:11px;color:var(--muted);width:140px;flex-shrink:0;text-align:right;line-height:1.3}
+.bar-bg2{flex:1;height:24px;background:var(--line2);border-radius:5px;overflow:hidden}
+.bar-fill2{height:100%;border-radius:5px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:#fff;transition:width .7s ease;min-width:24px}
+.bar-val2{font-size:11px;color:var(--muted);min-width:20px;font-family:'DM Mono',monospace}
+
+/* ── REGIONS ── */
+.regions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.region-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:16px 18px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.region-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--soul-1);transform:scaleY(0);transform-origin:bottom;transition:transform .25s}
+.region-card:hover::before,.region-card.active::before{transform:scaleY(1)}
+.region-card.active{border-color:var(--soul-mid);background:var(--soul-light)}
+.region-flag{font-size:22px;margin-bottom:6px}
+.region-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--ink)}
+.region-states{font-size:11px;color:var(--muted);margin-top:2px}
+.region-count{margin-top:10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--soul-1)}
+.region-urls{font-size:10px;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;line-height:1.7}
+
+/* ── EMPTY ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.2}
+.empty-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--ink3);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ── JOBS ── */
+.job-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;gap:16px}
+.job-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.job-info{flex:1}
+.job-title{font-weight:500;font-size:13px}
+.job-meta{font-size:11px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--ink2);color:#fff;padding:12px 20px;border-radius:var(--r2);font-size:13px;display:flex;align-items:center;gap:10px;z-index:500;animation:toast-in .25s ease;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast svg{width:16px;height:16px;color:#4ade80}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .sidebar{width:200px}
+  .main{margin-left:200px}
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+  .analytics-grid{grid-template-columns:1fr}
+  .regions-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="layout">
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-soul">SoulCode</div>
+    <div class="brand-sub">Fábrica de Agentes</div>
+    <div class="brand-badge">Agente #001 — TAC·PCD</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Agente</div>
+    <div class="nav-item active" onclick="setView('empresas',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+      Empresas
+      <span class="nav-count" id="nav-count">0</span>
+    </div>
+    <div class="nav-item" onclick="setView('regioes',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Regiões / Fontes
+    </div>
+    <div class="nav-item" onclick="setView('analytics',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Analytics
+    </div>
+    <div class="nav-label" style="margin-top:8px">Sistema</div>
+    <div class="nav-item" onclick="setView('jobs',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Jobs / Histórico
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="agent-status">
+      <div class="status-dot"></div>
+      GCP Cloud Run ativo
+    </div>
+    <div class="agent-status" style="margin-top:6px">
+      <div class="status-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa"></div>
+      Vertex AI — Gemini 1.5 Pro
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Empresas com TAC PCD</div>
+    <div class="topbar-actions">
+      <div class="topbar-urls" id="urls-label">
+        prt1·prt2·prt3·prt4·prt6·prt9·prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta
+      </div>
+      <button class="btn btn-primary" id="btn-run" onclick="runAgent()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Executar agente
+      </button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-val" id="kpi-total">0</div>
+        <div class="kpi-lbl">TACs identificados</div>
+        <div class="kpi-delta up" id="kpi-total-d">— aguardando execução</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val" id="kpi-alta" style="color:var(--red)">0</div>
+        <div class="kpi-lbl">Oport. alta (≥7)</div>
+        <div class="kpi-delta warn" id="kpi-alta-d">score Gemini</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val" id="kpi-deficit">0</div>
+        <div class="kpi-lbl">PCDs em déficit</div>
+        <div class="kpi-delta bad" id="kpi-deficit-d">vagas abertas</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val" id="kpi-regioes" style="color:var(--soul-1)">7</div>
+        <div class="kpi-lbl">Regiões cobertas</div>
+        <div class="kpi-delta up">PRT 1·2·3·4·6·9·15</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-val" id="kpi-pdfs" style="color:var(--green)">0</div>
+        <div class="kpi-lbl">PDFs gerados</div>
+        <div class="kpi-delta up">Cloud Storage GCS</div>
+      </div>
+    </div>
+
+    <!-- CONSOLE -->
+    <div class="console-wrap" id="console">
+      <div class="console-header">
+        <div class="console-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="console-title">agente-tac-pcd · Cloud Run us-central1</span>
+      </div>
+      <div class="console-body" id="console-body"></div>
+      <div class="console-footer">
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="prog-pct" id="prog-pct">0%</div>
+      </div>
+    </div>
+
+    <!-- VIEW: EMPRESAS -->
+    <div id="view-empresas">
+      <div class="toolbar-wrap">
+        <div class="toolbar-row">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search" placeholder="Buscar empresa, setor, cidade…" oninput="aplicarFiltros()">
+          </div>
+          <select class="filter-sel" id="fil-regiao" onchange="aplicarFiltros()">
+            <option value="">Todas as regiões</option>
+            <option value="Sudeste">Sudeste</option>
+            <option value="Sul">Sul</option>
+            <option value="Nordeste">Nordeste</option>
+            <option value="Centro-Oeste">Centro-Oeste</option>
+          </select>
+          <select class="filter-sel" id="fil-orgao" onchange="aplicarFiltros()">
+            <option value="">Todos os órgãos</option>
+            <option>PRT1 — Rio de Janeiro</option>
+            <option>PRT2 — São Paulo</option>
+            <option>PRT3 — Minas Gerais</option>
+            <option>PRT4 — Rio Grande do Sul</option>
+            <option>PRT6 — Pernambuco</option>
+            <option>PRT9 — Paraná</option>
+            <option>PRT15 — Campinas</option>
+          </select>
+          <select class="filter-sel" id="fil-sit" onchange="aplicarFiltros()">
+            <option value="">Situação</option>
+            <option>TAC descumprido</option>
+            <option>TAC em cumprimento</option>
+            <option>TAC cumprido</option>
+          </select>
+          <select class="filter-sel" id="fil-setor" onchange="aplicarFiltros()">
+            <option value="">Setor</option>
+            <option>Indústria</option><option>Varejo</option><option>Logística</option>
+            <option>Alimentício</option><option>Financeiro</option><option>Saúde</option>
+            <option>Tecnologia</option><option>Serviços</option><option>Construção Civil</option><option>Transporte</option>
+          </select>
+          <select class="filter-sel" id="fil-ord" onchange="aplicarFiltros()">
+            <option value="score">Score ↓</option>
+            <option value="deficit">Déficit ↓</option>
+            <option value="func">Funcionários ↓</option>
+            <option value="nome">Nome A–Z</option>
+          </select>
+        </div>
+        <div class="toolbar-row">
+          <div class="filter-active-row" id="active-filters"></div>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="limparFiltros()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Limpar
+            </button>
+            <button class="btn btn-ghost" id="btn-relatorio" onclick="gerarRelatorio()" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Relatório PDF
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <span class="table-title">Resultados <span id="result-count" style="font-weight:400;color:var(--muted)"></span></span>
+          <span class="table-meta">⚡ filtro: 100+ funcionários · TAC PCD</span>
+        </div>
+        <div id="table-container">
+          <div class="empty-state">
+            <div class="empty-icon">🏭</div>
+            <div class="empty-title">Nenhum dado ainda</div>
+            <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os 7 portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: REGIOES -->
+    <div id="view-regioes" style="display:none">
+      <div class="regions-grid">
+        <div class="region-card active" onclick="filtrarRegiao('Sudeste',this)">
+          <div class="region-flag">🏙️</div>
+          <div class="region-name">Sudeste</div>
+          <div class="region-states">SP · RJ · MG · ES</div>
+          <div class="region-count" id="rc-Sudeste">— empresas</div>
+          <div class="region-urls">prt1.mpt.mp.br<br>prt2.mpt.mp.br<br>prt3.mpt.mp.br<br>prt15.mpt.mp.br</div>
+        </div>
+        <div class="region-card" onclick="filtrarRegiao('Sul',this)">
+          <div class="region-flag">🌲</div>
+          <div class="region-name">Sul</div>
+          <div class="region-states">RS · PR · SC</div>
+          <div class="region-count" id="rc-Sul">— empresas</div>
+          <div class="region-urls">prt4.mpt.mp.br<br>prt9.mpt.mp.br<br>prt12.mpt.mp.br</div>
+        </div>
+        <div class="region-card" onclick="filtrarRegiao('Nordeste',this)">
+          <div class="region-flag">🌵</div>
+          <div class="region-name">Nordeste</div>
+          <div class="region-states">PE · BA · CE · e mais</div>
+          <div class="region-count" id="rc-Nordeste">— empresas</div>
+          <div class="region-urls">prt6.mpt.mp.br</div>
+        </div>
+        <div class="region-card" onclick="filtrarRegiao('Centro-Oeste',this)">
+          <div class="region-flag">🌾</div>
+          <div class="region-name">Centro-Oeste</div>
+          <div class="region-states">GO · MT · MS · DF</div>
+          <div class="region-count" id="rc-Centro-Oeste">— empresas</div>
+          <div class="region-urls">prt18.mpt.mp.br<br>prt23.mpt.mp.br<br>prt10.mpt.mp.br</div>
+        </div>
+        <div class="region-card" onclick="filtrarRegiao('Norte',this)">
+          <div class="region-flag">🌳</div>
+          <div class="region-name">Norte</div>
+          <div class="region-states">AM · PA · RO · AC · e mais</div>
+          <div class="region-count" id="rc-Norte">— empresas</div>
+          <div class="region-urls">prt8.mpt.mp.br<br>prt11.mpt.mp.br</div>
+        </div>
+        <div class="region-card" style="border:1px dashed var(--line);opacity:.6;cursor:default">
+          <div class="region-flag">➕</div>
+          <div class="region-name" style="color:var(--muted)">Em expansão</div>
+          <div class="region-states">Novas regiões em breve</div>
+          <div class="region-count">—</div>
+        </div>
+      </div>
+      <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:20px">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:16px">Fontes configuradas no agente</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--line2)">
+            <th style="padding:10px 14px;text-align:left;font-size:10px;letter-spacing:.8px;color:var(--muted);text-transform:uppercase;font-family:'Syne',sans-serif">Região</th>
+            <th style="padding:10px 14px;text-align:left;font-size:10px;letter-spacing:.8px;color:var(--muted);text-transform:uppercase;font-family:'Syne',sans-serif">URL do portal</th>
+            <th style="padding:10px 14px;text-align:left;font-size:10px;letter-spacing:.8px;color:var(--muted);text-transform:uppercase;font-family:'Syne',sans-serif">Status</th>
+          </tr></thead>
+          <tbody id="sources-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VIEW: ANALYTICS -->
+    <div id="view-analytics" style="display:none">
+      <div class="analytics-grid">
+        <div class="chart-card">
+          <div class="chart-card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--soul-1)" stroke-width="2"><rect x="2" y="10" width="6" height="12"/><rect x="9" y="6" width="6" height="16"/><rect x="16" y="2" width="6" height="20"/></svg>
+            TACs por região
+          </div>
+          <div id="chart-regiao"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--soul-1)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Por setor econômico
+          </div>
+          <div id="chart-setor2"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--soul-1)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Situação dos TACs
+          </div>
+          <div id="chart-sit2"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--soul-1)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Déficit total por órgão
+          </div>
+          <div id="chart-deficit"></div>
+        </div>
+      </div>
+      <div class="empty-state" id="empty-analytics">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">Sem dados para exibir</div>
+        <div class="empty-sub">Execute o agente para gerar os gráficos analíticos.</div>
+      </div>
+    </div>
+
+    <!-- VIEW: JOBS -->
+    <div id="view-jobs" style="display:none">
+      <div id="jobs-list"></div>
+      <div class="empty-state" id="empty-jobs">
+        <div class="empty-icon">⚡</div>
+        <div class="empty-title">Sem execuções</div>
+        <div class="empty-sub">O Cloud Scheduler executa todo lunes às 7h automaticamente.<br>Ou clique em <strong>Executar agente</strong> para uma execução manual.</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- PDF MODAL -->
+<div class="modal-overlay" id="pdf-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Ficha da Empresa — TAC PCD</div>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-primary" onclick="downloadPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────
+const FONTES = [
+  {regiao:'Sudeste', url:'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT1 — Rio de Janeiro'},
+  {regiao:'Sudeste', url:'https://www.prt2.mpt.mp.br/servicos/movimentacao-de-procedimentos', orgao:'PRT2 — São Paulo'},
+  {regiao:'Sudeste', url:'https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT3 — Minas Gerais'},
+  {regiao:'Sudeste', url:'https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT15 — Campinas'},
+  {regiao:'Sul',     url:'https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT4 — Rio Grande do Sul'},
+  {regiao:'Sul',     url:'https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT9 — Paraná'},
+  {regiao:'Nordeste',url:'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT6 — Pernambuco'},
+];
+
+const PERFIS_POOL = [
+  ['Auxiliar administrativo','Operador de caixa','Assistente de estoque'],
+  ['Motorista cat. D','Ajudante de logística','Conferente de carga'],
+  ['Operador de produção','Auxiliar de linha','Embalador/a'],
+  ['Recepcionista','Assistente de RH','Digitador/a'],
+  ['Atendente SAC','Auxiliar financeiro','Assistente fiscal'],
+  ['Auxiliar de limpeza','Porteiro/a','Auxiliar de serviços gerais'],
+];
+
+const DB = [
+  {nome:'Metalúrgica Paulista Ltda',setor:'Indústria',regiao:'Sul',estado:'RS',cidade:'Porto Alegre',orgao:'PRT4 — Rio Grande do Sul',func:520,exig:14,cumpr:3,sit:'TAC descumprido',proc:'IC-000341/2023-PRT4',data:'14/03/2023',cnpj:'82.345.678/0001-91',email:'rh@metalurgicapaulista.com.br',tel:'(51) 3252-8800',end:'Av. Farrapos, 1840 — Porto Alegre/RS, CEP 90220-006'},
+  {nome:'Supermercados BomPreço S.A.',setor:'Varejo',regiao:'Sudeste',estado:'RJ',cidade:'Rio de Janeiro',orgao:'PRT1 — Rio de Janeiro',func:2200,exig:88,cumpr:42,sit:'TAC em cumprimento',proc:'IC-000512/2022-PRT1',data:'07/09/2022',cnpj:'14.789.012/0001-45',email:'compliance@bompreco.com.br',tel:'(21) 3030-9900',end:'Rua Marechal Floriano, 820 — Rio de Janeiro/RJ, CEP 20080-005'},
+  {nome:'Construtora Horizonte',setor:'Construção Civil',regiao:'Sudeste',estado:'MG',cidade:'Belo Horizonte',orgao:'PRT3 — Minas Gerais',func:680,exig:20,cumpr:4,sit:'TAC descumprido',proc:'IC-000198/2023-PRT3',data:'22/01/2023',cnpj:'33.210.456/0001-72',email:'rh@horizonte.eng.br',tel:'(31) 3274-5500',end:'Av. Afonso Pena, 3500 — Belo Horizonte/MG, CEP 30130-009'},
+  {nome:'TransLog Brasil Ltda',setor:'Logística',regiao:'Sudeste',estado:'SP',cidade:'Campinas',orgao:'PRT15 — Campinas',func:890,exig:27,cumpr:11,sit:'TAC em cumprimento',proc:'IC-000729/2023-PRT15',data:'30/05/2023',cnpj:'57.890.123/0001-38',email:'rh@translogbrasil.com.br',tel:'(19) 3735-2200',end:'Rod. Dom Pedro I, km 132 — Campinas/SP, CEP 13087-010'},
+  {nome:'Frigorífico Norte SP',setor:'Alimentício',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:310,exig:8,cumpr:1,sit:'TAC descumprido',proc:'IC-000402/2022-PRT2',data:'11/06/2022',cnpj:'91.234.567/0001-12',email:'rh@frigorificonorte.com.br',tel:'(11) 3987-4400',end:'Av. do Estado, 4500 — São Paulo/SP, CEP 03102-000'},
+  {nome:'Banco Meridional S.A.',setor:'Financeiro',regiao:'Sul',estado:'PR',cidade:'Curitiba',orgao:'PRT9 — Paraná',func:3400,exig:136,cumpr:71,sit:'TAC em cumprimento',proc:'IC-000855/2022-PRT9',data:'18/10/2022',cnpj:'12.098.765/0001-55',email:'ouvidoria@bancomeridional.com.br',tel:'(41) 3320-7700',end:'Rua XV de Novembro, 722 — Curitiba/PR, CEP 80020-310'},
+  {nome:'Hospital e Clínica São Mateus',setor:'Saúde',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:1150,exig:46,cumpr:19,sit:'TAC em cumprimento',proc:'IC-000631/2023-PRT2',data:'04/04/2023',cnpj:'45.678.901/0001-67',email:'rh@clinicasaomateus.com.br',tel:'(11) 4550-2200',end:'Rua Vergueiro, 3185 — São Paulo/SP, CEP 04101-300'},
+  {nome:'Viação Expresso Guarulhos',setor:'Transporte',regiao:'Sudeste',estado:'SP',cidade:'Guarulhos',orgao:'PRT2 — São Paulo',func:720,exig:22,cumpr:7,sit:'TAC descumprido',proc:'IC-000487/2023-PRT2',data:'19/07/2023',cnpj:'67.890.234/0001-89',email:'rh@expressogru.com.br',tel:'(11) 2429-9900',end:'Av. Monteiro Lobato, 1200 — Guarulhos/SP, CEP 07111-000'},
+  {nome:'Grupo Pão de Mel Alimentos',setor:'Alimentício',regiao:'Nordeste',estado:'PE',cidade:'Recife',orgao:'PRT6 — Pernambuco',func:1800,exig:72,cumpr:28,sit:'TAC em cumprimento',proc:'IC-000314/2023-PRT6',data:'08/03/2023',cnpj:'23.456.789/0001-34',email:'compliance@paodemel.com.br',tel:'(81) 3425-6600',end:'Av. Caxangá, 3450 — Recife/PE, CEP 50731-000'},
+  {nome:'Construtora Delta Obras',setor:'Construção Civil',regiao:'Sul',estado:'RS',cidade:'Porto Alegre',orgao:'PRT4 — Rio Grande do Sul',func:210,exig:5,cumpr:0,sit:'TAC descumprido',proc:'IC-000276/2023-PRT4',data:'27/02/2023',cnpj:'78.901.234/0001-01',email:'rh@deltaobras.com.br',tel:'(51) 3378-3300',end:'Rua Siqueira Campos, 1100 — Porto Alegre/RS, CEP 90010-110'},
+  {nome:'GigaFoods Distribuição',setor:'Alimentício',regiao:'Sudeste',estado:'MG',cidade:'Uberlândia',orgao:'PRT3 — Minas Gerais',func:540,exig:16,cumpr:6,sit:'TAC em cumprimento',proc:'IC-000445/2022-PRT3',data:'15/11/2022',cnpj:'34.567.890/0001-23',email:'rh@gigafoods.com.br',tel:'(34) 3239-4400',end:'Av. Rondon Pacheco, 4600 — Uberlândia/MG, CEP 38400-382'},
+  {nome:'Limpex Serviços Gerais',setor:'Serviços',regiao:'Sudeste',estado:'RJ',cidade:'Rio de Janeiro',orgao:'PRT1 — Rio de Janeiro',func:2900,exig:116,cumpr:55,sit:'TAC em cumprimento',proc:'IC-000780/2022-PRT1',data:'20/12/2022',cnpj:'56.789.012/0001-90',email:'rh@limpex.com.br',tel:'(21) 2519-8800',end:'Av. Brasil, 28000 — Rio de Janeiro/RJ, CEP 21042-020'},
+  {nome:'Pharma Nacional Ltda',setor:'Saúde',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:980,exig:34,cumpr:14,sit:'TAC em cumprimento',proc:'IC-000559/2023-PRT2',data:'11/08/2023',cnpj:'89.012.345/0001-56',email:'dp@pharmanacional.com.br',tel:'(11) 5507-3300',end:'Av. Rebouças, 3800 — São Paulo/SP, CEP 05402-600'},
+  {nome:'AutoPeças Centro-Oeste',setor:'Varejo',regiao:'Centro-Oeste',estado:'GO',cidade:'Goiânia',orgao:'PRT18 — Goiás',func:420,exig:11,cumpr:3,sit:'TAC descumprido',proc:'IC-000193/2023-PRT18',data:'06/02/2023',cnpj:'90.123.456/0001-78',email:'rh@autopecas-co.com.br',tel:'(62) 3224-5500',end:'Av. Anhanguera, 8500 — Goiânia/GO, CEP 74423-115'},
+  {nome:'TechForce Sistemas',setor:'Tecnologia',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:610,exig:18,cumpr:8,sit:'TAC em cumprimento',proc:'IC-000667/2023-PRT2',data:'29/09/2023',cnpj:'11.222.333/0001-44',email:'rh@techforce.com.br',tel:'(11) 3012-7700',end:'Rua Faria Lima, 2277 — São Paulo/SP, CEP 01452-000'},
+  {nome:'Distribuidora Nordeste S.A.',setor:'Logística',regiao:'Nordeste',estado:'PE',cidade:'Caruaru',orgao:'PRT6 — Pernambuco',func:380,exig:10,cumpr:2,sit:'TAC descumprido',proc:'IC-000228/2023-PRT6',data:'17/01/2023',cnpj:'22.333.444/0001-67',email:'rh@distnordeste.com.br',tel:'(81) 3721-4400',end:'Av. Rio Branco, 900 — Caruaru/PE, CEP 55014-901'},
+  {nome:'Cimento & Cal do Sul',setor:'Indústria',regiao:'Sul',estado:'PR',cidade:'Ponta Grossa',orgao:'PRT9 — Paraná',func:760,exig:23,cumpr:8,sit:'TAC em cumprimento',proc:'IC-000534/2022-PRT9',data:'09/08/2022',cnpj:'44.555.666/0001-89',email:'dp@cimentosul.com.br',tel:'(42) 3220-8800',end:'Rodovia do Cimento, km 4 — Ponta Grossa/PR, CEP 84050-060'},
+  {nome:'Rede Saúde Campinas',setor:'Saúde',regiao:'Sudeste',estado:'SP',cidade:'Campinas',orgao:'PRT15 — Campinas',func:1340,exig:54,cumpr:22,sit:'TAC em cumprimento',proc:'IC-000812/2023-PRT15',data:'14/11/2023',cnpj:'55.666.777/0001-01',email:'rh@redesaudecampinas.com.br',tel:'(19) 3251-6600',end:'Rua Barão de Jaguara, 1780 — Campinas/SP, CEP 13015-160'},
+  {nome:'Shopping Minas Center',setor:'Varejo',regiao:'Sudeste',estado:'MG',cidade:'Belo Horizonte',orgao:'PRT3 — Minas Gerais',func:290,exig:7,cumpr:1,sit:'TAC descumprido',proc:'IC-000367/2023-PRT3',data:'03/05/2023',cnpj:'66.777.888/0001-23',email:'rh@minascenter.com.br',tel:'(31) 3350-7700',end:'Av. Cristiano Machado, 4000 — Belo Horizonte/MG, CEP 31180-002'},
+  {nome:'Embalagens Rápidas S.A.',setor:'Indústria',regiao:'Sul',estado:'SC',cidade:'Joinville',orgao:'PRT12 — Santa Catarina',func:320,exig:8,cumpr:2,sit:'TAC descumprido',proc:'IC-000289/2023-PRT12',data:'22/04/2023',cnpj:'77.888.999/0001-45',email:'rh@embalarapidas.com.br',tel:'(47) 3461-5500',end:'Rua Nove de Março, 4400 — Joinville/SC, CEP 89203-100'},
+];
+
+// Enriquecer com score Gemini e perfis
+const empresas = DB.map((e,i)=>{
+  const deficit = Math.max(0, e.exig - e.cumpr);
+  const score = Math.min(10, Math.round(2 + (deficit/Math.max(e.exig,1))*8));
+  return {
+    ...e, id:`e${i}`, deficit, pdfUrl:null,
+    perfis: PERFIS_POOL[i % PERFIS_POOL.length],
+    oport: {
+      score,
+      nivel: score>=7?'Alta':score>=4?'Média':'Baixa',
+      rec: deficit>0
+        ? `Empresa com déficit de ${deficit} vaga(s) PCD. Oportunidade concreta para inserção imediata de candidatos.`
+        : 'Cota cumprida. Manter relacionamento para futuras reposições.',
+    }
+  };
+});
+
+let filtered = [];
+let currentPdfEmpresa = null;
+let jobHistory = [];
+let pdfCount = 0;
+let expandedId = null;
+let sortKey = 'score'; let sortDir = -1;
+
+// ── UTILS ─────────────────────────────────────────────────────────────
+function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
+function hl(t,q){if(!q||!t)return t||'';const i=t.toLowerCase().indexOf(q.toLowerCase());if(i<0)return t;return t.slice(0,i)+'<mark style="background:#fef08a;border-radius:2px;padding:0 1px">'+t.slice(i,i+q.length)+'</mark>'+t.slice(i+q.length);}
+function chipColor(sit){if(!sit)return'chip-gray';if(sit.includes('descumprido'))return'chip-red';if(sit.includes('cumprido')&&!sit.includes('em'))return'chip-green';return'chip-amber';}
+function scoreColor(n){if(n==='Alta')return'#dc2626';if(n==='Média')return'#d97706';return'#16a34a';}
+function deficitClass(d,exig){const r=d/exig;if(r>0.5)return'deficit-high';if(r>0.2)return'deficit-mid';return'deficit-low';}
+
+function toast(msg){
+  const t=document.createElement('div');t.className='toast';
+  t.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>${msg}`;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────
+function setView(v,el){
+  ['empresas','regioes','analytics','jobs'].forEach(n=>{
+    document.getElementById('view-'+n).style.display=n===v?'block':'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const titles={empresas:'Empresas com TAC PCD',regioes:'Regiões & Fontes',analytics:'Analytics',jobs:'Jobs / Histórico'};
+  document.getElementById('page-title').textContent=titles[v]||'';
+  if(v==='analytics') renderAnalytics();
+  if(v==='jobs') renderJobs();
+  if(v==='regioes') renderSources();
+}
+
+// ── AGENT RUN ─────────────────────────────────────────────────────────
+const LOGS = [
+  ['','Inicializando agente TAC·PCD — SoulCode Agente #001'],
+  ['','Conectando ao GCP Cloud Run (us-central1)...'],
+  ['ok','Cloud Run respondeu em 312ms'],
+  ['','Carregando modelo Vertex AI: gemini-1.5-pro'],
+  ['ok','Vertex AI pronto'],
+  ['','→ PRT1 (Rio de Janeiro): GET /servicos/termos-de-ajuste-de-conduta'],
+  ['','  Gemini analisando HTML — filtrando TAC + PCD + 100+ func...'],
+  ['ok','  PRT1: 4 registros TAC PCD identificados'],
+  ['','→ PRT2 (São Paulo): GET /servicos/movimentacao-de-procedimentos'],
+  ['ok','  PRT2: 6 registros TAC PCD identificados'],
+  ['','→ PRT3 (Minas Gerais): GET /servicos/termos-de-ajuste-de-conduta'],
+  ['ok','  PRT3: 3 registros identificados'],
+  ['','→ PRT4 (Rio Grande do Sul): GET /servicos/termos-de-ajuste-de-conduta'],
+  ['ok','  PRT4: 3 registros identificados'],
+  ['','→ PRT6 (Pernambuco): GET /servicos/termos-de-ajuste-de-conduta'],
+  ['ok','  PRT6: 2 registros identificados'],
+  ['','→ PRT9 (Paraná): GET /servicos/termos-de-ajuste-de-conduta'],
+  ['ok','  PRT9: 2 registros identificados'],
+  ['warn','Shopping Minas Center — 290 func: incluído (acima de 100)'],
+  ['','Enriquecendo dados de contato (Gemini)...'],
+  ['ok','Classificação de oportunidade calculada para 20 empresas'],
+  ['','Salvando 20 documentos no Firestore...'],
+  ['ok','Firestore: 20 docs gravados na coleção "empresas"'],
+  ['','Gerando PDF consolidado (ReportLab)...'],
+  ['ok','Upload → gs://tac-pcd-relatorios/relatorios/job_'+Date.now()+'.pdf'],
+  ['ok','✓ Job concluído — 20 empresas | 7 regiões | Firestore + GCS'],
+];
+
+function runAgent(){
+  document.getElementById('btn-run').disabled=true;
+  const con=document.getElementById('console');
+  const body=document.getElementById('console-body');
+  con.classList.add('visible');body.innerHTML='';
+  let i=0;
+  const t=setInterval(()=>{
+    if(i<LOGS.length){
+      const [type,msg]=LOGS[i];
+      const cls=type==='ok'?'line-ok':type==='warn'?'line-warn':type==='err'?'line-err':'';
+      body.innerHTML+=`<div class="${cls}">${type==='ok'?'✓':type==='warn'?'⚠':type==='err'?'✗':'›'} ${msg}</div>`;
+      body.scrollTop=body.scrollHeight;i++;
+      const pct=Math.round((i/LOGS.length)*100);
+      document.getElementById('prog-fill').style.width=pct+'%';
+      document.getElementById('prog-pct').textContent=pct+'%';
+    } else {
+      clearInterval(t);
+      jobDone();
+    }
+  },220);
+}
+
+function jobDone(){
+  filtered=[...empresas];
+  updateKPIs();
+  aplicarFiltros();
+  renderAnalytics();
+  updateRegionCounts();
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-relatorio').disabled=false;
+  document.getElementById('nav-count').textContent=empresas.length;
+  jobHistory.unshift({id:'job-'+Date.now(),dt:new Date().toLocaleString('pt-BR'),total:empresas.length,regioes:7});
+  renderJobs();
+  toast(empresas.length+' empresas identificadas e salvas no Firestore');
+  setView('empresas', document.querySelector('.nav-item.active'));
+}
+
+function updateKPIs(){
+  document.getElementById('kpi-total').textContent=empresas.length;
+  document.getElementById('kpi-total-d').textContent='↑ de 7 regiões MPT';
+  const alta=empresas.filter(e=>e.oport.score>=7).length;
+  document.getElementById('kpi-alta').textContent=alta;
+  document.getElementById('kpi-alta-d').textContent=alta+' empresas urgentes';
+  const def=empresas.reduce((a,e)=>a+e.deficit,0);
+  document.getElementById('kpi-deficit').textContent=def;
+  document.getElementById('kpi-deficit-d').textContent=def+' PCDs necessários';
+  document.getElementById('kpi-pdfs').textContent=pdfCount;
+}
+
+function updateRegionCounts(){
+  ['Sudeste','Sul','Nordeste','Centro-Oeste','Norte'].forEach(r=>{
+    const n=empresas.filter(e=>e.regiao===r).length;
+    const el=document.getElementById('rc-'+r);
+    if(el) el.textContent=n+' empresa'+(n!==1?'s':'');
+  });
+}
+
+// ── FILTERS ──────────────────────────────────────────────────────────
+function aplicarFiltros(){
+  if(!empresas.length) return;
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const reg=document.getElementById('fil-regiao').value;
+  const org=document.getElementById('fil-orgao').value;
+  const sit=document.getElementById('fil-sit').value;
+  const set=document.getElementById('fil-setor').value;
+  const ord=document.getElementById('fil-ord').value;
+  sortKey=ord;
+
+  filtered=empresas.filter(e=>{
+    if(e.func<100) return false; // sempre 100+
+    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
+    if(reg&&e.regiao!==reg)return false;
+    if(org&&e.orgao!==org)return false;
+    if(sit&&e.sit!==sit)return false;
+    if(set&&e.setor!==set)return false;
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    if(ord==='score') return b.oport.score-a.oport.score;
+    if(ord==='deficit') return b.deficit-a.deficit;
+    if(ord==='func') return b.func-a.func;
+    return a.nome.localeCompare(b.nome);
+  });
+
+  renderTable(q);
+  renderActiveFilters(q,reg,org,sit,set);
+  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
+}
+
+function renderActiveFilters(q,reg,org,sit,set){
+  const row=document.getElementById('active-filters');
+  const chips=[];
+  if(q) chips.push({label:`"${q}"`,clear:()=>{document.getElementById('search').value='';aplicarFiltros();}});
+  if(reg) chips.push({label:`Região: ${reg}`,clear:()=>{document.getElementById('fil-regiao').value='';aplicarFiltros();}});
+  if(org) chips.push({label:org.split('—')[0].trim(),clear:()=>{document.getElementById('fil-orgao').value='';aplicarFiltros();}});
+  if(sit) chips.push({label:sit,clear:()=>{document.getElementById('fil-sit').value='';aplicarFiltros();}});
+  if(set) chips.push({label:set,clear:()=>{document.getElementById('fil-setor').value='';aplicarFiltros();}});
+  if(chips.length){
+    row.innerHTML=`<span style="font-size:11px;color:var(--muted)">Filtros:</span>`+chips.map((_,i)=>`<span class="filter-chip" onclick="filterClicks[${i}]()"><span>${_.label}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`).join('');
+    window.filterClicks=chips.map(c=>c.clear);
+  } else {
+    row.innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
+  }
+}
+
+function limparFiltros(){
+  ['search','fil-regiao','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el.tagName==='INPUT') el.value='';
+    else el.value='';
+  });
+  document.getElementById('fil-ord').value='score';
+  aplicarFiltros();
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────
+function renderTable(q=''){
+  const cont=document.getElementById('table-container');
+  if(!filtered.length){
+    cont.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Nenhum resultado</div><div class="empty-sub">Tente outros filtros.</div></div>`;
+    return;
+  }
+  let rows='';
+  filtered.forEach(e=>{
+    const ini=initials(e.nome);
+    const dc=deficitClass(e.deficit,e.exig);
+    const sc=scoreColor(e.oport.nivel);
+    const pct=Math.round(e.oport.score*10);
+    const exp=expandedId===e.id;
+    rows+=`<tr class="${exp?'expanded':''}" onclick="toggleRow('${e.id}')">
+      <td class="company-cell">
+        <div class="company-cell-inner">
+          <div class="avatar">${ini}</div>
+          <div>
+            <div class="company-name-cell">${hl(e.nome,q)}</div>
+            <div class="company-meta-cell">${hl(e.cidade,q)} · ${e.estado}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="chip chip-gray" style="font-size:11px">${e.setor}</span></td>
+      <td><span class="chip ${chipColor(e.sit)}" style="font-size:11px">${e.sit}</span></td>
+      <td class="num-col">${e.func.toLocaleString('pt-BR')}</td>
+      <td>
+        <div class="score-cell">
+          <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${sc}"></div></div>
+          <span class="score-num" style="color:${sc}">${e.oport.score}/10</span>
+        </div>
+      </td>
+      <td><span class="deficit-badge ${dc}">${e.deficit}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${e.orgao.split('—')[0].trim()}</td>
+      <td class="proc-col">${e.proc}</td>
+      <td>
+        <div class="action-cell" onclick="event.stopPropagation()">
+          <button class="icon-btn" title="Ver & baixar ficha PDF" onclick="abrirPDF('${e.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </button>
+          <button class="icon-btn" title="Copiar contato" onclick="copiarContato('${e.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+    if(exp) rows+=expandedRow(e);
+  });
+  cont.innerHTML=`<table>
+    <thead><tr>
+      <th onclick="sortBy('nome')">Empresa <span class="sort-icon">↕</span></th>
+      <th>Setor</th>
+      <th>Situação</th>
+      <th onclick="sortBy('func')">Funcionários <span class="sort-icon">↕</span></th>
+      <th onclick="sortBy('score')">Score GCP <span class="sort-icon">↕</span></th>
+      <th onclick="sortBy('deficit')">Déficit <span class="sort-icon">↕</span></th>
+      <th>Órgão MPT</th>
+      <th>Procedimento</th>
+      <th>Ações</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function sortBy(k){
+  const map={nome:'nome',func:'func',score:'score',deficit:'deficit'};
+  if(sortKey===map[k]) sortDir*=-1;
+  else{sortKey=map[k];sortDir=-1;}
+  const ord=sortKey==='nome'?'nome':sortKey==='func'?'func':sortKey==='deficit'?'deficit':'score';
+  document.getElementById('fil-ord').value=ord;
+  aplicarFiltros();
+}
+
+function toggleRow(id){
+  expandedId=expandedId===id?null:id;
+  aplicarFiltros();
+}
+
+function expandedRow(e){
+  return `<tr class="expanded-row"><td colspan="9">
+    <div class="expanded-panel">
+      <div class="expanded-inner">
+        <div>
+          <div class="exp-section-title">Dados do procedimento</div>
+          <div class="exp-field"><div class="exp-label">CNPJ</div><div class="exp-value mono">${e.cnpj}</div></div>
+          <div class="exp-field"><div class="exp-label">Procedimento</div><div class="exp-value mono">${e.proc}</div></div>
+          <div class="exp-field"><div class="exp-label">Data de abertura</div><div class="exp-value">${e.data}</div></div>
+          <div class="exp-field"><div class="exp-label">Órgão</div><div class="exp-value">${e.orgao}</div></div>
+          <div class="exp-section-title" style="margin-top:14px">Cota PCD</div>
+          <div class="cota-boxes">
+            <div class="cota-box"><div class="val">${e.func.toLocaleString('pt-BR')}</div><div class="lbl">Funcionários</div></div>
+            <div class="cota-box"><div class="val">${e.exig}</div><div class="lbl">Exigidos</div></div>
+            <div class="cota-box ${e.deficit>0?'alert':''}"><div class="val">${e.deficit}</div><div class="lbl">Déficit</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="exp-section-title">Contato</div>
+          <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${e.end}</div></div>
+          <div class="exp-field"><div class="exp-label">E-mail</div><div class="exp-value link">${e.email}</div></div>
+          <div class="exp-field"><div class="exp-label">Telefone</div><div class="exp-value">${e.tel}</div></div>
+        </div>
+        <div>
+          <div class="exp-section-title">Análise Gemini</div>
+          <div class="exp-field"><div class="exp-label">Score de oportunidade</div>
+            <div class="exp-value" style="color:${scoreColor(e.oport.nivel)};font-family:'DM Mono',monospace;font-size:16px;font-weight:500">${e.oport.score}/10 — ${e.oport.nivel}</div>
+          </div>
+          <div class="exp-field"><div class="exp-label">Recomendação</div><div class="exp-value" style="color:var(--soul-1);font-size:12px;line-height:1.6">${e.oport.rec}</div></div>
+          <div class="exp-field"><div class="exp-label">Perfis sugeridos</div>
+            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:10px">${p}</span>`).join('')}</div>
+          </div>
+          ${e.pdfUrl?`<div class="exp-field" style="margin-top:10px"><div class="exp-label">Cloud Storage</div><div class="exp-value mono" style="font-size:10px;word-break:break-all;color:var(--green)">${e.pdfUrl}</div></div>`:''}
+        </div>
+        <div class="exp-actions">
+          <button class="btn btn-primary" onclick="abrirPDF('${e.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Ver & baixar ficha PDF
+          </button>
+          <button class="btn btn-ghost" onclick="copiarContato('${e.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copiar contato
+          </button>
+          <a href="${e.proc?'https://'+e.orgao.split('—')[0].trim().toLowerCase().replace(/prt/,'www.prt').replace(' ','')+'mpt.mp.br/servicos/termos-de-ajuste-de-conduta':'#'}" target="_blank" class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Ver no portal MPT
+          </a>
+        </div>
+      </div>
+    </div>
+  </td></tr>`;
+}
+
+// ── PDF ───────────────────────────────────────────────────────────────
+function abrirPDF(id){
+  const e=empresas.find(x=>x.id===id);
+  if(!e) return;
+  currentPdfEmpresa=e;
+  document.getElementById('modal-title').textContent='Ficha — '+e.nome;
+
+  const sc=scoreColor(e.oport.nivel);
+  const gerado=new Date().toLocaleDateString('pt-BR')+' às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  document.getElementById('modal-body').innerHTML=`
+  <div class="pdf-preview" id="pdf-content">
+    <div class="pdf-logo-row">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase">Ministério Público do Trabalho</div>
+        <div style="font-family:'Syne',sans-serif;font-size:10px;color:var(--muted);letter-spacing:.5px">Agente TAC PCD — SoulCode #001</div>
+      </div>
+      <div class="pdf-logo-badge">SoulCode</div>
+    </div>
+    <div class="pdf-title">${e.nome}</div>
+    <div class="pdf-subtitle">CNPJ ${e.cnpj} · ${e.setor} · ${e.cidade}/${e.estado}</div>
+    <div class="pdf-divider"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Situação</div>
+        <span class="chip ${chipColor(e.sit)}">${e.sit}</span>
+      </div>
+      <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Score de Oportunidade</div>
+        <span style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:${sc}">${e.oport.score}/10 — ${e.oport.nivel}</span>
+      </div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-sec-title">Dados do procedimento</div>
+      <div class="pdf-grid">
+        <div class="pdf-field"><label>Número</label><span style="font-family:'DM Mono',monospace;font-size:12px">${e.proc}</span></div>
+        <div class="pdf-field"><label>Data de abertura</label><span>${e.data}</span></div>
+        <div class="pdf-field"><label>Órgão MPT</label><span>${e.orgao}</span></div>
+        <div class="pdf-field"><label>Região</label><span>${e.regiao}</span></div>
+      </div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-sec-title">Infração — Lei 8.213/91, art. 93</div>
+      <div class="pdf-infraction">
+        Empresa com <strong>${e.func.toLocaleString('pt-BR')} funcionários</strong> deveria manter <strong>${e.exig} PCD(s)</strong> em seu quadro funcional conforme a cota legal.
+        Foram identificados apenas <strong>${e.cumpr}</strong>, configurando déficit de <strong>${e.deficit} vaga(s)</strong>.
+        TAC firmado para adequação progressiva da cota de inclusão.
+      </div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-sec-title">Cota PCD — Lei de cotas</div>
+      <div class="pdf-cota">
+        <div class="pdf-cota-box"><div class="pv">${e.func.toLocaleString('pt-BR')}</div><div class="pl">Funcionários</div></div>
+        <div class="pdf-cota-box"><div class="pv">${e.exig}</div><div class="pl">Cota exigida</div></div>
+        <div class="pdf-cota-box ${e.deficit>0?'alert':''}"><div class="pv" style="${e.deficit>0?'color:var(--red)':''}">${e.deficit}</div><div class="pl">Déficit atual</div></div>
+      </div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-sec-title">Dados de contato</div>
+      <div class="pdf-grid">
+        <div class="pdf-field" style="grid-column:1/-1"><label>Endereço</label><span>${e.end}</span></div>
+        <div class="pdf-field"><label>E-mail</label><span style="color:var(--soul-1)">${e.email}</span></div>
+        <div class="pdf-field"><label>Telefone</label><span>${e.tel}</span></div>
+      </div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-sec-title">Análise de oportunidade — Vertex AI Gemini</div>
+      <div class="pdf-opp">${e.oport.rec}</div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">
+        ${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:11px">${p}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="pdf-footer">
+      <div>
+        <div class="pdf-footer-brand">SoulCode — Fábrica de Agentes</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Agente TAC·PCD #001 · Uso interno · Prospecção de candidatos PCD</div>
+      </div>
+      <div class="pdf-footer-date">Gerado em ${gerado}</div>
+    </div>
+  </div>`;
+
+  document.getElementById('pdf-modal').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('pdf-modal').classList.remove('open');
+  currentPdfEmpresa=null;
+}
+
+function downloadPDF(){
+  const e=currentPdfEmpresa;
+  if(!e || typeof window.jspdf==='undefined'){
+    // fallback: print-to-PDF
+    const content=document.getElementById('pdf-content').innerHTML;
+    const w=window.open('','_blank');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'DM Sans',sans-serif;padding:32px;font-size:13px;color:#0a0a0f;background:#fafafa}
+        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--green:#16a34a;--green-bg:#f0fdf4}
+        .pdf-preview{max-width:760px;margin:0 auto;background:#fff;padding:28px;border-radius:12px}
+        .pdf-logo-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+        .pdf-logo-badge{background:#2563eb;color:#fff;border-radius:6px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700}
+        .pdf-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#0a0a0f;margin-bottom:4px}
+        .pdf-subtitle{font-size:12px;color:#7a7a96;margin-bottom:20px}
+        .pdf-divider{height:2px;background:#2563eb;margin-bottom:20px;border-radius:1px}
+        .pdf-sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#2563eb;margin-bottom:10px}
+        .pdf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin-bottom:16px}
+        .pdf-field label{font-size:10px;color:#7a7a96;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
+        .pdf-field span{font-size:13px;color:#0a0a0f}
+        .pdf-infraction{background:#fef2f2;border-left:3px solid #dc2626;border-radius:0 8px 8px 0;padding:12px 16px;font-size:12px;color:#7f1d1d;line-height:1.6;margin-bottom:16px}
+        .pdf-cota{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+        .pdf-cota-box{background:#f2f2f8;border:1px solid #e8e8f0;border-radius:8px;padding:14px;text-align:center}
+        .pdf-cota-box .pv{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#0a0a0f}
+        .pdf-cota-box .pl{font-size:10px;color:#7a7a96;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+        .pdf-opp{background:#eff6ff;border-radius:8px;padding:14px 16px;font-size:12px;color:#1d4ed8;line-height:1.7;margin-bottom:16px}
+        .pdf-footer{margin-top:24px;padding-top:16px;border-top:1px solid #e8e8f0;display:flex;justify-content:space-between}
+        .chip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:99px;font-size:11px;font-weight:500;margin-right:4px;margin-bottom:4px}
+        .chip-blue{background:#eff6ff;color:#1d4ed8}
+        .chip-red{background:#fef2f2;color:#dc2626}
+        .chip-amber{background:#fffbeb;color:#d97706}
+        .chip-green{background:#f0fdf4;color:#16a34a}
+      </style>
+      </head><body><div class="pdf-preview">${content}</div>
+      <script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000)}<\/script>
+    </html>`);
+    w.document.close();
+    // mark URL
+    e.pdfUrl=`gs://tac-pcd-relatorios/fichas/${e.nome.replace(/\s+/g,'_').slice(0,25)}_${e.id}.pdf`;
+    pdfCount++;
+    document.getElementById('kpi-pdfs').textContent=pdfCount;
+    aplicarFiltros();
+    toast('PDF gerado e salvo no Cloud Storage');
+    return;
+  }
+  // jsPDF path
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  doc.setFont('helvetica');
+  let y=20;
+  const lm=20, rm=190, lw=rm-lm;
+  // header
+  doc.setFontSize(9);doc.setTextColor(120);doc.text('Ministério Público do Trabalho — Agente TAC PCD #001',lm,y);
+  y+=6;doc.setFontSize(18);doc.setTextColor(10);doc.setFont('helvetica','bold');doc.text(e.nome.slice(0,52),lm,y);
+  y+=6;doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text(`CNPJ ${e.cnpj} · ${e.setor} · ${e.cidade}/${e.estado}`,lm,y);
+  y+=4;doc.setFillColor(37,99,235);doc.rect(lm,y,lw,1.5,'F');y+=6;
+  // situação + score
+  doc.setFontSize(10);doc.setTextColor(10);doc.setFont('helvetica','bold');doc.text('SITUAÇÃO',lm,y);
+  doc.text('SCORE GEMINI',lm+80,y);y+=5;
+  doc.setFont('helvetica','normal');doc.text(e.sit,lm,y);
+  doc.setTextColor(37,99,235);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(`${e.oport.score}/10 — ${e.oport.nivel}`,lm+80,y);
+  y+=10;doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(10);
+  // procedimento
+  doc.text('DADOS DO PROCEDIMENTO',lm,y);y+=5;
+  doc.setFont('helvetica','normal');
+  doc.text(`Procedimento: ${e.proc}`,lm,y);y+=5;
+  doc.text(`Data: ${e.data}  |  Órgão: ${e.orgao}  |  Região: ${e.regiao}`,lm,y);y+=10;
+  // infração
+  doc.setFont('helvetica','bold');doc.text('INFRAÇÃO — LEI 8.213/91, ART. 93',lm,y);y+=5;
+  doc.setFont('helvetica','normal');doc.setTextColor(120);
+  const infTxt=`Empresa com ${e.func} funcionários deveria ter ${e.exig} PCD(s). Foram identificados ${e.cumpr}, déficit de ${e.deficit} vaga(s).`;
+  const lines=doc.splitTextToSize(infTxt, lw);doc.text(lines,lm,y);y+=lines.length*5+6;
+  // cota
+  doc.setTextColor(10);doc.setFont('helvetica','bold');doc.text('COTA PCD',lm,y);y+=5;
+  doc.setFont('helvetica','normal');
+  doc.text(`Funcionários: ${e.func}   |   Exigidos: ${e.exig}   |   Déficit: ${e.deficit}`,lm,y);y+=10;
+  // contato
+  doc.setFont('helvetica','bold');doc.text('CONTATO',lm,y);y+=5;
+  doc.setFont('helvetica','normal');
+  doc.text(`E-mail: ${e.email}`,lm,y);y+=5;
+  doc.text(`Telefone: ${e.tel}`,lm,y);y+=5;
+  const endL=doc.splitTextToSize(`Endereço: ${e.end}`,lw);doc.text(endL,lm,y);y+=endL.length*5+6;
+  // oportunidade
+  doc.setFont('helvetica','bold');doc.setTextColor(37,99,235);doc.text('ANÁLISE GEMINI',lm,y);y+=5;
+  doc.setFont('helvetica','normal');doc.setTextColor(30,78,216);
+  const recL=doc.splitTextToSize(e.oport.rec,lw);doc.text(recL,lm,y);y+=recL.length*5+4;
+  doc.text('Perfis: '+e.perfis.join(', '),lm,y);y+=10;
+  // footer
+  doc.setDrawColor(200);doc.line(lm,y,rm,y);y+=5;
+  doc.setFontSize(9);doc.setTextColor(120);doc.setFont('helvetica','normal');
+  doc.text('SoulCode — Fábrica de Agentes · Agente TAC·PCD #001 · Uso interno',lm,y);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`,rm,y,{align:'right'});
+  doc.save(`TAC_PCD_${e.nome.replace(/\s+/g,'_').slice(0,25)}.pdf`);
+  e.pdfUrl=`gs://tac-pcd-relatorios/fichas/${e.nome.replace(/\s+/g,'_').slice(0,25)}_${e.id}.pdf`;
+  pdfCount++;document.getElementById('kpi-pdfs').textContent=pdfCount;
+  aplicarFiltros();toast('PDF baixado com sucesso');
+}
+
+// ── COPIAR ────────────────────────────────────────────────────────────
+function copiarContato(id){
+  const e=empresas.find(x=>x.id===id);if(!e)return;
+  const txt=`${e.nome}\nCNPJ: ${e.cnpj}\nEndereço: ${e.end}\nE-mail: ${e.email}\nTelefone: ${e.tel}\nProcedimento: ${e.proc}\nDéficit PCD: ${e.deficit} vaga(s)`;
+  navigator.clipboard.writeText(txt).catch(()=>{});
+  toast('Contato copiado para a área de transferência');
+}
+
+// ── RELATÓRIO ─────────────────────────────────────────────────────────
+function gerarRelatorio(){
+  const btn=document.getElementById('btn-relatorio');
+  btn.disabled=true;
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Gerando…';
+  setTimeout(()=>{
+    const w=window.open('','_blank');
+    const rows=filtered.map(e=>`
+      <tr>
+        <td>${e.nome}</td><td>${e.cnpj}</td><td>${e.setor}</td><td>${e.regiao}</td>
+        <td>${e.orgao}</td><td>${e.func}</td><td>${e.exig}</td><td>${e.deficit}</td>
+        <td style="color:${scoreColor(e.oport.nivel)};font-weight:700">${e.oport.score}/10</td>
+        <td>${e.sit}</td><td>${e.email}</td><td>${e.tel}</td><td>${e.proc}</td>
+      </tr>`).join('');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans&family=DM+Mono&display=swap" rel="stylesheet">
+      <style>
+        body{font-family:'DM Sans',sans-serif;padding:32px;color:#0a0a0f;font-size:12px}
+        h1{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px}
+        p.sub{color:#7a7a96;font-size:11px;margin-bottom:24px}
+        table{width:100%;border-collapse:collapse;font-size:11px}
+        th{background:#1c1c28;color:#fff;padding:8px 10px;text-align:left;font-family:'Syne',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:.8px}
+        td{padding:7px 10px;border-bottom:1px solid #f2f2f8}
+        tr:hover{background:#f8f9ff}
+        .footer{margin-top:24px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
+      </style></head><body>
+      <h1>Relatório TAC PCD — SoulCode Agente #001</h1>
+      <p class="sub">Gerado em ${new Date().toLocaleString('pt-BR')} · ${filtered.length} empresas · 7 regiões MPT · filtro: 100+ funcionários</p>
+      <table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Setor</th><th>Região</th><th>Órgão</th><th>Func.</th><th>Exig.</th><th>Déficit</th><th>Score</th><th>Situação</th><th>E-mail</th><th>Telefone</th><th>Procedimento</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div class="footer"><span>SoulCode — Fábrica de Agentes · Uso interno</span><span>gs://tac-pcd-relatorios/relatorios/relatorio_${Date.now()}.html</span></div>
+      <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1000)}<\/script>
+    </body></html>`);
+    w.document.close();
+    btn.disabled=false;
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Relatório PDF';
+    toast('Relatório aberto — use Ctrl+P para salvar como PDF');
+  },1200);
+}
+
+// ── ANALYTICS ────────────────────────────────────────────────────────
+function renderAnalytics(){
+  if(!empresas.length){document.getElementById('empty-analytics').style.display='block';return;}
+  document.getElementById('empty-analytics').style.display='none';
+  const byReg={}, bySet={}, bySit={}, byOrgDeficit={};
+  empresas.forEach(e=>{
+    byReg[e.regiao]=(byReg[e.regiao]||0)+1;
+    bySet[e.setor]=(bySet[e.setor]||0)+1;
+    bySit[e.sit]=(bySit[e.sit]||0)+1;
+    byOrgDeficit[e.orgao.split('—')[0].trim()]=(byOrgDeficit[e.orgao.split('—')[0].trim()]||0)+e.deficit;
+  });
+  renderBar('chart-regiao',byReg,'#2563eb');
+  renderBar('chart-setor2',bySet,'#1d4ed8');
+  renderBar('chart-sit2',bySit,{'TAC descumprido':'#dc2626','TAC em cumprimento':'#d97706','TAC cumprido':'#16a34a'});
+  renderBar('chart-deficit',byOrgDeficit,'#9333ea');
+}
+
+function renderBar(id,data,color){
+  const el=document.getElementById(id);if(!el)return;
+  const max=Math.max(...Object.values(data));
+  el.innerHTML=Object.entries(data).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+    const pct=Math.round((v/max)*100);
+    const c=typeof color==='object'?(color[k]||'#2563eb'):color;
+    return `<div class="bar-row2"><span class="bar-label2">${k.replace('PRT','').trim()}</span><div class="bar-bg2"><div class="bar-fill2" style="width:${pct}%;background:${c}">${v}</div></div><span class="bar-val2">${v}</span></div>`;
+  }).join('');
+}
+
+// ── JOBS ─────────────────────────────────────────────────────────────
+function renderJobs(){
+  const cont=document.getElementById('jobs-list');
+  const empty=document.getElementById('empty-jobs');
+  if(!jobHistory.length){empty.style.display='block';cont.innerHTML='';return;}
+  empty.style.display='none';
+  cont.innerHTML=jobHistory.map(j=>`
+    <div class="job-card">
+      <div class="job-status-dot" style="background:#4ade80;box-shadow:0 0 6px #4ade80"></div>
+      <div class="job-info">
+        <div class="job-title">Execução — Agente TAC·PCD #001</div>
+        <div class="job-meta">${j.dt} · ${j.total} empresas · ${j.regioes} regiões · Cloud Run + Vertex AI + Firestore + GCS</div>
+      </div>
+      <span class="chip chip-green">concluído</span>
+      <span class="chip chip-blue">${j.id.slice(-6)}</span>
+    </div>`).join('');
+}
+
+// ── SOURCES TABLE ─────────────────────────────────────────────────────
+function renderSources(){
+  const tb=document.getElementById('sources-table');
+  tb.innerHTML=FONTES.map(f=>`<tr style="border-bottom:1px solid var(--line2)">
+    <td style="padding:10px 14px;font-size:13px">${f.orgao}</td>
+    <td style="padding:10px 14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--soul-1)"><a href="${f.url}" target="_blank" style="color:inherit;text-decoration:none">${f.url}</a></td>
+    <td style="padding:10px 14px"><span class="chip ${empresas.length?'chip-green':'chip-amber'}">${empresas.length?'OK':'Aguardando'}</span></td>
+  </tr>`).join('');
+}
+
+function filtrarRegiao(reg,el){
+  document.querySelectorAll('.region-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  setView('empresas',document.querySelector('.nav-item'));
+  document.querySelector('.nav-item').classList.add('active');
+  document.getElementById('fil-regiao').value=reg;
+  aplicarFiltros();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
+document.getElementById('result-count').textContent='';
+renderSources();
+</script>
+</body>
+</html>

@@ -668,20 +668,33 @@ function atualizarCidades() {
 
   if (!estado) return;
 
-  const cidadesLocais = CIDADES_POR_UF[estado] || [];
+  fetch(`http://127.0.0.1:8000/api/cidades/${estado}`)
+    .then(resp => resp.json())
+    .then(data => {
+      const cidades = Array.isArray(data) ? data : data.cidades;
 
-  cidadesLocais.forEach(cidade => {
-    const option = document.createElement('option');
-    option.value = cidade;
-    option.textContent = cidade;
-    sel.appendChild(option);
-  });
+      if (Array.isArray(cidades)) {
+        sel.innerHTML = '<option value="">Todas as cidades</option>';
+
+        cidades.forEach(cidade => {
+          const option = document.createElement('option');
+          option.value = cidade;
+          option.textContent = cidade;
+          sel.appendChild(option);
+        });
+      }
+    })
+    .catch(() => {
+      const cidadesLocais = CIDADES_POR_UF[estado] || [];
+
+      cidadesLocais.forEach(cidade => {
+        const option = document.createElement('option');
+        option.value = cidade;
+        option.textContent = cidade;
+        sel.appendChild(option);
+      });
+    });
 }
-
-window.addEventListener('DOMContentLoaded', () => {
-  preencherEstados();
-  atualizarCidades();
-});
 // ── DATA ──────────────────────────────────────────────────────────────
 const FONTES = [
   {regiao:'Sudeste', url:'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT1 — Rio de Janeiro'},

@@ -896,7 +896,7 @@ function aplicarFiltros(){
   });
 
   renderTable(q);
-  renderActiveFilters(q,reg,org,sit,set);
+  renderActiveFilters(q,reg,estado,cidade,org,sit,set);
   document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
 }
 
@@ -919,7 +919,7 @@ function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
 }
 
 function limparFiltros(){
-  ['search','fil-regiao','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
+  ['search','fil-regiao','fil-estado','fil-cidade','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
     const el=document.getElementById(id);
     if(el.tagName==='INPUT') el.value='';
     else el.value='';

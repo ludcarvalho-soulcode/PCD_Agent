@@ -391,7 +391,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
       </div>
     </div>
 
-    <!-- VIEW: EMPRESAS -->
+    <!-- VIEW: EMPRESAS -->P
     <div id="view-empresas">
       <div class="toolbar-wrap">
         <div class="toolbar-row">
@@ -399,12 +399,19 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" id="search" placeholder="Buscar empresa, setor, cidade…" oninput="aplicarFiltros()">
           </div>
-          <select class="filter-sel" id="fil-regiao" onchange="aplicarFiltros()">
+          <select class="filter-sel" id="fil-regiao" onchange="preencherEstados(); atualizarCidades(); aplicarFiltros()">
             <option value="">Todas as regiões</option>
             <option value="Sudeste">Sudeste</option>
             <option value="Sul">Sul</option>
+            <option value="Norte">Norte</option>
             <option value="Nordeste">Nordeste</option>
             <option value="Centro-Oeste">Centro-Oeste</option>
+          </select>
+          <select class="filter-sel" id="fil-estado" onchange="atualizarCidades();aplicarFiltros()">
+            <option value="">Todos os estados</option>
+          </select>
+          <select class="filter-sel" id="fil-cidade" onchange="aplicarFiltros()">
+            <option value="">Todas as cidades</option>
           </select>
           <select class="filter-sel" id="fil-orgao" onchange="aplicarFiltros()">
             <option value="">Todos os órgãos</option>
@@ -457,7 +464,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         </div>
         <div id="table-container">
           <div class="empty-state">
-            <div class="empty-icon">🏭</div>
+            <div class="empty-icon">🔍</div>
             <div class="empty-title">Nenhum dado ainda</div>
             <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os 7 portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
           </div>
@@ -597,6 +604,84 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
 </div>
 
 <script>
+// Lista completa de UFs do Brasil
+const UFS_BR = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
+];
+// Principais cidades por estado (capitais)
+const CIDADES_POR_UF = {
+  'AC': ['Rio Branco'],
+  'AL': ['Maceió'],
+  'AP': ['Macapá'],
+  'AM': ['Manaus'],
+  'BA': ['Salvador'],
+  'CE': ['Fortaleza'],
+  'DF': ['Brasília'],
+  'ES': ['Vitória'],
+  'GO': ['Goiânia'],
+  'MA': ['São Luís'],
+  'MT': ['Cuiabá'],
+  'MS': ['Campo Grande'],
+  'MG': ['Belo Horizonte', 'Uberlândia'],
+  'PA': ['Belém'],
+  'PB': ['João Pessoa'],
+  'PR': ['Curitiba', 'Ponta Grossa'],
+  'PE': ['Recife', 'Caruaru'],
+  'PI': ['Teresina'],
+  'RJ': ['Rio de Janeiro'],
+  'RN': ['Natal'],
+  'RS': ['Porto Alegre'],
+  'RO': ['Porto Velho'],
+  'RR': ['Boa Vista'],
+  'SC': ['Florianópolis', 'Joinville'],
+  'SP': ['São Paulo', 'Campinas', 'Guarulhos'],
+  'SE': ['Aracaju'],
+  'TO': ['Palmas']
+};
+
+// Mapeamento de regiões para UFs
+const REGIOES_UF = {
+  'Sudeste': ['SP', 'RJ', 'MG', 'ES'],
+  'Sul': ['RS', 'SC', 'PR'],
+  'Centro-Oeste': ['GO', 'MT', 'MS', 'DF'],
+  'Nordeste': ['BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA'],
+  'Norte': ['AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC']
+};
+
+function preencherEstados() {
+  const regiao = document.getElementById('fil-regiao').value;
+  let estados = [];
+  if (regiao && REGIOES_UF[regiao]) {
+    estados = REGIOES_UF[regiao];
+  } else {
+    estados = UFS_BR;
+  }
+  const sel = document.getElementById('fil-estado');
+  sel.innerHTML = '<option value="">Todos os estados</option>' + estados.map(uf => `<option value="${uf}">${uf}</option>`).join('');
+}
+
+function atualizarCidades() {
+  const estado = document.getElementById('fil-estado').value;
+  const sel = document.getElementById('fil-cidade');
+
+  sel.innerHTML = '<option value="">Todas as cidades</option>';
+
+  if (!estado) return;
+
+  const cidadesLocais = CIDADES_POR_UF[estado] || [];
+
+  cidadesLocais.forEach(cidade => {
+    const option = document.createElement('option');
+    option.value = cidade;
+    option.textContent = cidade;
+    sel.appendChild(option);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  preencherEstados();
+  atualizarCidades();
+});
 // ── DATA ──────────────────────────────────────────────────────────────
 const FONTES = [
   {regiao:'Sudeste', url:'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT1 — Rio de Janeiro'},
@@ -783,6 +868,8 @@ function aplicarFiltros(){
   if(!empresas.length) return;
   const q=document.getElementById('search').value.trim().toLowerCase();
   const reg=document.getElementById('fil-regiao').value;
+  const estado=document.getElementById('fil-estado').value;
+  const cidade=document.getElementById('fil-cidade').value;
   const org=document.getElementById('fil-orgao').value;
   const sit=document.getElementById('fil-sit').value;
   const set=document.getElementById('fil-setor').value;
@@ -793,6 +880,8 @@ function aplicarFiltros(){
     if(e.func<100) return false; // sempre 100+
     if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
     if(reg&&e.regiao!==reg)return false;
+    if(estado && !e.cidade?.includes(`- ${estado}`) && e.uf !== estado && e.estado !== estado) return false;
+    if(cidade && !e.cidade?.toLowerCase().includes(cidade.toLowerCase())) return false;
     if(org&&e.orgao!==org)return false;
     if(sit&&e.sit!==sit)return false;
     if(set&&e.setor!==set)return false;
@@ -811,11 +900,13 @@ function aplicarFiltros(){
   document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
 }
 
-function renderActiveFilters(q,reg,org,sit,set){
+function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
   const row=document.getElementById('active-filters');
   const chips=[];
   if(q) chips.push({label:`"${q}"`,clear:()=>{document.getElementById('search').value='';aplicarFiltros();}});
   if(reg) chips.push({label:`Região: ${reg}`,clear:()=>{document.getElementById('fil-regiao').value='';aplicarFiltros();}});
+  if(estado) chips.push({label:`Estado: ${estado}`,clear:()=>{document.getElementById('fil-estado').value='';aplicarFiltros();}});
+  if(cidade) chips.push({label:`Cidade: ${cidade}`,clear:()=>{document.getElementById('fil-cidade').value='';aplicarFiltros();}});
   if(org) chips.push({label:org.split('—')[0].trim(),clear:()=>{document.getElementById('fil-orgao').value='';aplicarFiltros();}});
   if(sit) chips.push({label:sit,clear:()=>{document.getElementById('fil-sit').value='';aplicarFiltros();}});
   if(set) chips.push({label:set,clear:()=>{document.getElementById('fil-setor').value='';aplicarFiltros();}});
@@ -946,7 +1037,7 @@ function expandedRow(e){
           </div>
           <div class="exp-field"><div class="exp-label">Recomendação</div><div class="exp-value" style="color:var(--soul-1);font-size:12px;line-height:1.6">${e.oport.rec}</div></div>
           <div class="exp-field"><div class="exp-label">Perfis sugeridos</div>
-            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:10px">${p}</span>`).join('')}</div>
+            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:11px">${p}</span>`).join('')}</div>
           </div>
           ${e.pdfUrl?`<div class="exp-field" style="margin-top:10px"><div class="exp-label">Cloud Storage</div><div class="exp-value mono" style="font-size:10px;word-break:break-all;color:var(--green)">${e.pdfUrl}</div></div>`:''}
         </div>
@@ -1072,11 +1163,11 @@ function downloadPDF(){
     const content=document.getElementById('pdf-content').innerHTML;
     const w=window.open('','_blank');
     w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans&family=DM+Mono&display=swap" rel="stylesheet">
       <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'DM Sans',sans-serif;padding:32px;font-size:13px;color:#0a0a0f;background:#fafafa}
-        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--green:#16a34a;--green-bg:#f0fdf4}
+        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--amber-mid:#fde68a;--green:#16a34a;--green-bg:#f0fdf4}
         .pdf-preview{max-width:760px;margin:0 auto;background:#fff;padding:28px;border-radius:12px}
         .pdf-logo-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
         .pdf-logo-badge{background:#2563eb;color:#fff;border-radius:6px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700}

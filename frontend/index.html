@@ -739,7 +739,7 @@ const DB = [
 ];
 
 // Enriquecer com score Gemini e perfis
-const empresas = DB.map((e,i)=>{
+let empresasBase = DB.map((e,i)=>{
   const deficit = Math.max(0, e.exig - e.cumpr);
   const score = Math.min(10, Math.round(2 + (deficit/Math.max(e.exig,1))*8));
   return {
@@ -755,12 +755,124 @@ const empresas = DB.map((e,i)=>{
   };
 });
 
+let empresas = [...empresasBase];
+
 let filtered = [];
 let currentPdfEmpresa = null;
 let jobHistory = [];
 let pdfCount = 0;
 let expandedId = null;
 let sortKey = 'score'; let sortDir = -1;
+let filtroSeq = 0;
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+const REGIAO_POR_UF = Object.fromEntries(
+  Object.entries(REGIOES_UF).flatMap(([regiao, ufs]) => ufs.map(uf => [uf, regiao]))
+);
+
+function regiaoPorUf(uf){
+  return REGIAO_POR_UF[(uf || '').toUpperCase()] || '';
+}
+
+function extrairUfDeEndereco(endereco){
+  const valor = String(endereco || '');
+  const match = valor.match(/\/\s*([A-Z]{2})\b/);
+  return match ? match[1].toUpperCase() : '';
+}
+
+function extrairCidadeDeEndereco(endereco){
+  const valor = String(endereco || '');
+  const match = valor.match(/(?:—|,)\s*([^/,—]+?)\s*\/\s*[A-Z]{2}\b/);
+  return match ? match[1].trim() : '';
+}
+
+function normalizarEmpresaApi(e, index=0){
+  const endereco = e.endereco || e.end || '';
+  const estado = (e.estado || e.uf || extrairUfDeEndereco(endereco)).toString().toUpperCase();
+  const cidade = e.cidade || extrairCidadeDeEndereco(endereco);
+  const exig = Number(e.cota_exigida ?? e.exig ?? 0) || 0;
+  const cumpr = Number(e.cota_cumprida ?? e.cumpr ?? 0) || 0;
+  const deficit = Math.max(0, Number(e.deficit ?? (exig - cumpr)) || 0);
+  const scoreBase = Number(e?.oportunidade?.score_oportunidade ?? e?.oport?.score);
+  const score = Number.isFinite(scoreBase)
+    ? scoreBase
+    : Math.min(10, Math.round(2 + (deficit / Math.max(exig, 1)) * 8));
+  const nivel = e?.oportunidade?.nivel || e?.oport?.nivel || (score >= 7 ? 'Alta' : score >= 4 ? 'Média' : 'Baixa');
+  const recomendacao = e?.oportunidade?.recomendacao || e?.oport?.rec || (deficit > 0
+    ? `Empresa com déficit de ${deficit} vaga(s) PCD. Oportunidade concreta para inserção imediata de candidatos.`
+    : 'Cota cumprida. Manter relacionamento para futuras reposições.');
+
+  return {
+    ...e,
+    id: e.id || `api-${index}`,
+    nome: e.razao_social || e.nome || '',
+    func: Number(e.num_funcionarios ?? e.func ?? 0) || 0,
+    exig,
+    cumpr,
+    deficit,
+    sit: e.situacao || e.sit || '',
+    orgao: e.orgao || '',
+    proc: e.numero_procedimento || e.proc || '',
+    data: e.data_abertura || e.data || '',
+    cnpj: e.cnpj || '',
+    email: e.email || '',
+    tel: e.telefone || e.tel || '',
+    end: endereco,
+    estado,
+    cidade,
+    regiao: e.regiao || regiaoPorUf(estado),
+    pdfUrl: e.pdf_url || e.pdfUrl || null,
+    perfis: Array.isArray(e.perfis) ? e.perfis : PERFIS_POOL[index % PERFIS_POOL.length],
+    oport: {
+      score,
+      nivel,
+      rec: recomendacao,
+    },
+  };
+}
+
+async function buscarEmpresasApi(filtros={}){
+  const params = new URLSearchParams();
+  if (filtros.busca) params.set('busca', filtros.busca);
+  if (filtros.regiao) params.set('regiao', filtros.regiao);
+  if (filtros.estado) params.set('estado', filtros.estado);
+  if (filtros.cidade) params.set('cidade', filtros.cidade);
+  if (filtros.orgao) params.set('orgao', filtros.orgao);
+  if (filtros.situacao) params.set('situacao', filtros.situacao);
+  if (filtros.setor) params.set('setor', filtros.setor);
+  params.set('limite', String(filtros.limite || 500));
+
+  const resp = await fetch(`${API_BASE_URL}/empresas?${params.toString()}`);
+  if (!resp.ok) {
+    throw new Error(`API retornou status ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return Array.isArray(data) ? data.map((item, index) => normalizarEmpresaApi(item, index)) : [];
+}
+
+function filtrarLocalmente(base, filtros){
+  const q = (filtros.busca || '').trim().toLowerCase();
+  const reg = filtros.regiao || '';
+  const estado = filtros.estado || '';
+  const cidade = filtros.cidade || '';
+  const org = filtros.orgao || '';
+  const sit = filtros.situacao || '';
+  const set = filtros.setor || '';
+
+  return base.filter(e => {
+    if (e.func < 100) return false;
+    if (q && !`${e.nome} ${e.setor} ${e.cidade} ${e.end} ${e.orgao}`.toLowerCase().includes(q)) return false;
+    if (reg && e.regiao !== reg) return false;
+    if (estado && e.estado !== estado.toUpperCase()) return false;
+    if (cidade && !String(e.cidade || '').toLowerCase().includes(cidade.toLowerCase())) return false;
+    if (org && e.orgao !== org) return false;
+    if (sit && e.sit !== sit) return false;
+    if (set && e.setor !== set) return false;
+    return true;
+  });
+}
 
 // ── UTILS ─────────────────────────────────────────────────────────────
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
@@ -877,7 +989,7 @@ function updateRegionCounts(){
 }
 
 // ── FILTERS ──────────────────────────────────────────────────────────
-function aplicarFiltros(){
+async function aplicarFiltros(){
   if(!empresas.length) return;
   const q=document.getElementById('search').value.trim().toLowerCase();
   const reg=document.getElementById('fil-regiao').value;
@@ -889,17 +1001,19 @@ function aplicarFiltros(){
   const ord=document.getElementById('fil-ord').value;
   sortKey=ord;
 
-  filtered=empresas.filter(e=>{
-    if(e.func<100) return false; // sempre 100+
-    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
-    if(reg&&e.regiao!==reg)return false;
-    if(estado && !e.cidade?.includes(`- ${estado}`) && e.uf !== estado && e.estado !== estado) return false;
-    if(cidade && !e.cidade?.toLowerCase().includes(cidade.toLowerCase())) return false;
-    if(org&&e.orgao!==org)return false;
-    if(sit&&e.sit!==sit)return false;
-    if(set&&e.setor!==set)return false;
-    return true;
-  });
+  const seq = ++filtroSeq;
+  const filtros = { busca: q, regiao: reg, estado, cidade, orgao: org, situacao: sit, setor: set, limite: 500 };
+
+  let listaFiltrada = [];
+  try {
+    listaFiltrada = await buscarEmpresasApi(filtros);
+  } catch (error) {
+    listaFiltrada = filtrarLocalmente(empresasBase, filtros);
+  }
+
+  if (seq !== filtroSeq) return;
+
+  filtered = listaFiltrada;
 
   filtered.sort((a,b)=>{
     if(ord==='score') return b.oport.score-a.oport.score;
@@ -910,7 +1024,7 @@ function aplicarFiltros(){
 
   renderTable(q);
   renderActiveFilters(q,reg,estado,cidade,org,sit,set);
-  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
+  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresasBase.length}`;
 }
 
 function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
@@ -1382,9 +1496,27 @@ function filtrarRegiao(reg,el){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
-document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
-document.getElementById('result-count').textContent='';
-renderSources();
+async function inicializarAplicacao(){
+  document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
+  document.getElementById('result-count').textContent='';
+  renderSources();
+
+  try {
+    const dadosBase = await buscarEmpresasApi({ limite: 500 });
+    if (dadosBase.length) {
+      empresasBase = dadosBase;
+      empresas = [...dadosBase];
+      updateKPIs();
+      updateRegionCounts();
+    }
+  } catch (error) {
+    console.warn('Falha ao carregar dados da API; usando base local.', error);
+  }
+
+  await aplicarFiltros();
+}
+
+void inicializarAplicacao();
 </script>
 </body>
 </html>

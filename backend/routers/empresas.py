@@ -12,10 +12,16 @@ async def listar(
     orgao:    Optional[str] = None,
     situacao: Optional[str] = None,
     busca:    Optional[str] = None,
+    estado:   Optional[str] = None,
+    cidade:   Optional[str] = None,
+    regiao:   Optional[str] = None,
+    setor:    Optional[str] = None,
     limite:   int = 100,
 ):
     return await fs.listar_empresas(orgao=orgao, situacao=situacao,
-                                    busca=busca, limite=limite)
+                                    busca=busca, estado=estado,
+                                    cidade=cidade, regiao=regiao,
+                                    setor=setor, limite=limite)
 
 
 @router.get("/{empresa_id}")

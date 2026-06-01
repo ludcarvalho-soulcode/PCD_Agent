@@ -399,12 +399,19 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" id="search" placeholder="Buscar empresa, setor, cidade…" oninput="aplicarFiltros()">
           </div>
-          <select class="filter-sel" id="fil-regiao" onchange="aplicarFiltros()">
+          <select class="filter-sel" id="fil-regiao" onchange="preencherEstados(); atualizarCidades(); aplicarFiltros()">
             <option value="">Todas as regiões</option>
             <option value="Sudeste">Sudeste</option>
             <option value="Sul">Sul</option>
+            <option value="Norte">Norte</option>
             <option value="Nordeste">Nordeste</option>
             <option value="Centro-Oeste">Centro-Oeste</option>
+          </select>
+          <select class="filter-sel" id="fil-estado" onchange="atualizarCidades();aplicarFiltros()">
+            <option value="">Todos os estados</option>
+          </select>
+          <select class="filter-sel" id="fil-cidade" onchange="aplicarFiltros()">
+            <option value="">Todas as cidades</option>
           </select>
           <select class="filter-sel" id="fil-orgao" onchange="aplicarFiltros()">
             <option value="">Todos os órgãos</option>
@@ -457,7 +464,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         </div>
         <div id="table-container">
           <div class="empty-state">
-            <div class="empty-icon">🏭</div>
+            <div class="empty-icon">🔍</div>
             <div class="empty-title">Nenhum dado ainda</div>
             <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os 7 portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
           </div>
@@ -597,6 +604,97 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
 </div>
 
 <script>
+// Lista completa de UFs do Brasil
+const UFS_BR = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
+];
+// Principais cidades por estado (capitais)
+const CIDADES_POR_UF = {
+  'AC': ['Rio Branco'],
+  'AL': ['Maceió'],
+  'AP': ['Macapá'],
+  'AM': ['Manaus'],
+  'BA': ['Salvador'],
+  'CE': ['Fortaleza'],
+  'DF': ['Brasília'],
+  'ES': ['Vitória'],
+  'GO': ['Goiânia'],
+  'MA': ['São Luís'],
+  'MT': ['Cuiabá'],
+  'MS': ['Campo Grande'],
+  'MG': ['Belo Horizonte', 'Uberlândia'],
+  'PA': ['Belém'],
+  'PB': ['João Pessoa'],
+  'PR': ['Curitiba', 'Ponta Grossa'],
+  'PE': ['Recife', 'Caruaru'],
+  'PI': ['Teresina'],
+  'RJ': ['Rio de Janeiro'],
+  'RN': ['Natal'],
+  'RS': ['Porto Alegre'],
+  'RO': ['Porto Velho'],
+  'RR': ['Boa Vista'],
+  'SC': ['Florianópolis', 'Joinville'],
+  'SP': ['São Paulo', 'Campinas', 'Guarulhos'],
+  'SE': ['Aracaju'],
+  'TO': ['Palmas']
+};
+
+// Mapeamento de regiões para UFs
+const REGIOES_UF = {
+  'Sudeste': ['SP', 'RJ', 'MG', 'ES'],
+  'Sul': ['RS', 'SC', 'PR'],
+  'Centro-Oeste': ['GO', 'MT', 'MS', 'DF'],
+  'Nordeste': ['BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA'],
+  'Norte': ['AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC']
+};
+
+function preencherEstados() {
+  const regiao = document.getElementById('fil-regiao').value;
+  let estados = [];
+  if (regiao && REGIOES_UF[regiao]) {
+    estados = REGIOES_UF[regiao];
+  } else {
+    estados = UFS_BR;
+  }
+  const sel = document.getElementById('fil-estado');
+  sel.innerHTML = '<option value="">Todos os estados</option>' + estados.map(uf => `<option value="${uf}">${uf}</option>`).join('');
+}
+
+function atualizarCidades() {
+  const estado = document.getElementById('fil-estado').value;
+  const sel = document.getElementById('fil-cidade');
+
+  sel.innerHTML = '<option value="">Todas as cidades</option>';
+
+  if (!estado) return;
+
+  fetch(`http://127.0.0.1:8000/api/cidades/${estado}`)
+    .then(resp => resp.json())
+    .then(data => {
+      const cidades = Array.isArray(data) ? data : data.cidades;
+
+      if (Array.isArray(cidades)) {
+        sel.innerHTML = '<option value="">Todas as cidades</option>';
+
+        cidades.forEach(cidade => {
+          const option = document.createElement('option');
+          option.value = cidade;
+          option.textContent = cidade;
+          sel.appendChild(option);
+        });
+      }
+    })
+    .catch(() => {
+      const cidadesLocais = CIDADES_POR_UF[estado] || [];
+
+      cidadesLocais.forEach(cidade => {
+        const option = document.createElement('option');
+        option.value = cidade;
+        option.textContent = cidade;
+        sel.appendChild(option);
+      });
+    });
+}
 // ── DATA ──────────────────────────────────────────────────────────────
 const FONTES = [
   {regiao:'Sudeste', url:'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT1 — Rio de Janeiro'},
@@ -641,7 +739,7 @@ const DB = [
 ];
 
 // Enriquecer com score Gemini e perfis
-const empresas = DB.map((e,i)=>{
+let empresasBase = DB.map((e,i)=>{
   const deficit = Math.max(0, e.exig - e.cumpr);
   const score = Math.min(10, Math.round(2 + (deficit/Math.max(e.exig,1))*8));
   return {
@@ -657,12 +755,124 @@ const empresas = DB.map((e,i)=>{
   };
 });
 
+let empresas = [...empresasBase];
+
 let filtered = [];
 let currentPdfEmpresa = null;
 let jobHistory = [];
 let pdfCount = 0;
 let expandedId = null;
 let sortKey = 'score'; let sortDir = -1;
+let filtroSeq = 0;
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+const REGIAO_POR_UF = Object.fromEntries(
+  Object.entries(REGIOES_UF).flatMap(([regiao, ufs]) => ufs.map(uf => [uf, regiao]))
+);
+
+function regiaoPorUf(uf){
+  return REGIAO_POR_UF[(uf || '').toUpperCase()] || '';
+}
+
+function extrairUfDeEndereco(endereco){
+  const valor = String(endereco || '');
+  const match = valor.match(/\/\s*([A-Z]{2})\b/);
+  return match ? match[1].toUpperCase() : '';
+}
+
+function extrairCidadeDeEndereco(endereco){
+  const valor = String(endereco || '');
+  const match = valor.match(/(?:—|,)\s*([^/,—]+?)\s*\/\s*[A-Z]{2}\b/);
+  return match ? match[1].trim() : '';
+}
+
+function normalizarEmpresaApi(e, index=0){
+  const endereco = e.endereco || e.end || '';
+  const estado = (e.estado || e.uf || extrairUfDeEndereco(endereco)).toString().toUpperCase();
+  const cidade = e.cidade || extrairCidadeDeEndereco(endereco);
+  const exig = Number(e.cota_exigida ?? e.exig ?? 0) || 0;
+  const cumpr = Number(e.cota_cumprida ?? e.cumpr ?? 0) || 0;
+  const deficit = Math.max(0, Number(e.deficit ?? (exig - cumpr)) || 0);
+  const scoreBase = Number(e?.oportunidade?.score_oportunidade ?? e?.oport?.score);
+  const score = Number.isFinite(scoreBase)
+    ? scoreBase
+    : Math.min(10, Math.round(2 + (deficit / Math.max(exig, 1)) * 8));
+  const nivel = e?.oportunidade?.nivel || e?.oport?.nivel || (score >= 7 ? 'Alta' : score >= 4 ? 'Média' : 'Baixa');
+  const recomendacao = e?.oportunidade?.recomendacao || e?.oport?.rec || (deficit > 0
+    ? `Empresa com déficit de ${deficit} vaga(s) PCD. Oportunidade concreta para inserção imediata de candidatos.`
+    : 'Cota cumprida. Manter relacionamento para futuras reposições.');
+
+  return {
+    ...e,
+    id: e.id || `api-${index}`,
+    nome: e.razao_social || e.nome || '',
+    func: Number(e.num_funcionarios ?? e.func ?? 0) || 0,
+    exig,
+    cumpr,
+    deficit,
+    sit: e.situacao || e.sit || '',
+    orgao: e.orgao || '',
+    proc: e.numero_procedimento || e.proc || '',
+    data: e.data_abertura || e.data || '',
+    cnpj: e.cnpj || '',
+    email: e.email || '',
+    tel: e.telefone || e.tel || '',
+    end: endereco,
+    estado,
+    cidade,
+    regiao: e.regiao || regiaoPorUf(estado),
+    pdfUrl: e.pdf_url || e.pdfUrl || null,
+    perfis: Array.isArray(e.perfis) ? e.perfis : PERFIS_POOL[index % PERFIS_POOL.length],
+    oport: {
+      score,
+      nivel,
+      rec: recomendacao,
+    },
+  };
+}
+
+async function buscarEmpresasApi(filtros={}){
+  const params = new URLSearchParams();
+  if (filtros.busca) params.set('busca', filtros.busca);
+  if (filtros.regiao) params.set('regiao', filtros.regiao);
+  if (filtros.estado) params.set('estado', filtros.estado);
+  if (filtros.cidade) params.set('cidade', filtros.cidade);
+  if (filtros.orgao) params.set('orgao', filtros.orgao);
+  if (filtros.situacao) params.set('situacao', filtros.situacao);
+  if (filtros.setor) params.set('setor', filtros.setor);
+  params.set('limite', String(filtros.limite || 500));
+
+  const resp = await fetch(`${API_BASE_URL}/empresas?${params.toString()}`);
+  if (!resp.ok) {
+    throw new Error(`API retornou status ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return Array.isArray(data) ? data.map((item, index) => normalizarEmpresaApi(item, index)) : [];
+}
+
+function filtrarLocalmente(base, filtros){
+  const q = (filtros.busca || '').trim().toLowerCase();
+  const reg = filtros.regiao || '';
+  const estado = filtros.estado || '';
+  const cidade = filtros.cidade || '';
+  const org = filtros.orgao || '';
+  const sit = filtros.situacao || '';
+  const set = filtros.setor || '';
+
+  return base.filter(e => {
+    if (e.func < 100) return false;
+    if (q && !`${e.nome} ${e.setor} ${e.cidade} ${e.end} ${e.orgao}`.toLowerCase().includes(q)) return false;
+    if (reg && e.regiao !== reg) return false;
+    if (estado && e.estado !== estado.toUpperCase()) return false;
+    if (cidade && !String(e.cidade || '').toLowerCase().includes(cidade.toLowerCase())) return false;
+    if (org && e.orgao !== org) return false;
+    if (sit && e.sit !== sit) return false;
+    if (set && e.setor !== set) return false;
+    return true;
+  });
+}
 
 // ── UTILS ─────────────────────────────────────────────────────────────
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
@@ -779,25 +989,31 @@ function updateRegionCounts(){
 }
 
 // ── FILTERS ──────────────────────────────────────────────────────────
-function aplicarFiltros(){
+async function aplicarFiltros(){
   if(!empresas.length) return;
   const q=document.getElementById('search').value.trim().toLowerCase();
   const reg=document.getElementById('fil-regiao').value;
+  const estado=document.getElementById('fil-estado').value;
+  const cidade=document.getElementById('fil-cidade').value;
   const org=document.getElementById('fil-orgao').value;
   const sit=document.getElementById('fil-sit').value;
   const set=document.getElementById('fil-setor').value;
   const ord=document.getElementById('fil-ord').value;
   sortKey=ord;
 
-  filtered=empresas.filter(e=>{
-    if(e.func<100) return false; // sempre 100+
-    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
-    if(reg&&e.regiao!==reg)return false;
-    if(org&&e.orgao!==org)return false;
-    if(sit&&e.sit!==sit)return false;
-    if(set&&e.setor!==set)return false;
-    return true;
-  });
+  const seq = ++filtroSeq;
+  const filtros = { busca: q, regiao: reg, estado, cidade, orgao: org, situacao: sit, setor: set, limite: 500 };
+
+  let listaFiltrada = [];
+  try {
+    listaFiltrada = await buscarEmpresasApi(filtros);
+  } catch (error) {
+    listaFiltrada = filtrarLocalmente(empresasBase, filtros);
+  }
+
+  if (seq !== filtroSeq) return;
+
+  filtered = listaFiltrada;
 
   filtered.sort((a,b)=>{
     if(ord==='score') return b.oport.score-a.oport.score;
@@ -807,15 +1023,17 @@ function aplicarFiltros(){
   });
 
   renderTable(q);
-  renderActiveFilters(q,reg,org,sit,set);
-  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
+  renderActiveFilters(q,reg,estado,cidade,org,sit,set);
+  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresasBase.length}`;
 }
 
-function renderActiveFilters(q,reg,org,sit,set){
+function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
   const row=document.getElementById('active-filters');
   const chips=[];
   if(q) chips.push({label:`"${q}"`,clear:()=>{document.getElementById('search').value='';aplicarFiltros();}});
   if(reg) chips.push({label:`Região: ${reg}`,clear:()=>{document.getElementById('fil-regiao').value='';aplicarFiltros();}});
+  if(estado) chips.push({label:`Estado: ${estado}`,clear:()=>{document.getElementById('fil-estado').value='';aplicarFiltros();}});
+  if(cidade) chips.push({label:`Cidade: ${cidade}`,clear:()=>{document.getElementById('fil-cidade').value='';aplicarFiltros();}});
   if(org) chips.push({label:org.split('—')[0].trim(),clear:()=>{document.getElementById('fil-orgao').value='';aplicarFiltros();}});
   if(sit) chips.push({label:sit,clear:()=>{document.getElementById('fil-sit').value='';aplicarFiltros();}});
   if(set) chips.push({label:set,clear:()=>{document.getElementById('fil-setor').value='';aplicarFiltros();}});
@@ -828,7 +1046,7 @@ function renderActiveFilters(q,reg,org,sit,set){
 }
 
 function limparFiltros(){
-  ['search','fil-regiao','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
+  ['search','fil-regiao','fil-estado','fil-cidade','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
     const el=document.getElementById(id);
     if(el.tagName==='INPUT') el.value='';
     else el.value='';
@@ -946,7 +1164,7 @@ function expandedRow(e){
           </div>
           <div class="exp-field"><div class="exp-label">Recomendação</div><div class="exp-value" style="color:var(--soul-1);font-size:12px;line-height:1.6">${e.oport.rec}</div></div>
           <div class="exp-field"><div class="exp-label">Perfis sugeridos</div>
-            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:10px">${p}</span>`).join('')}</div>
+            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:11px">${p}</span>`).join('')}</div>
           </div>
           ${e.pdfUrl?`<div class="exp-field" style="margin-top:10px"><div class="exp-label">Cloud Storage</div><div class="exp-value mono" style="font-size:10px;word-break:break-all;color:var(--green)">${e.pdfUrl}</div></div>`:''}
         </div>
@@ -1072,11 +1290,11 @@ function downloadPDF(){
     const content=document.getElementById('pdf-content').innerHTML;
     const w=window.open('','_blank');
     w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans&family=DM+Mono&display=swap" rel="stylesheet">
       <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'DM Sans',sans-serif;padding:32px;font-size:13px;color:#0a0a0f;background:#fafafa}
-        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--green:#16a34a;--green-bg:#f0fdf4}
+        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--amber-mid:#fde68a;--green:#16a34a;--green-bg:#f0fdf4}
         .pdf-preview{max-width:760px;margin:0 auto;background:#fff;padding:28px;border-radius:12px}
         .pdf-logo-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
         .pdf-logo-badge{background:#2563eb;color:#fff;border-radius:6px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700}
@@ -1278,9 +1496,27 @@ function filtrarRegiao(reg,el){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
-document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
-document.getElementById('result-count').textContent='';
-renderSources();
+async function inicializarAplicacao(){
+  document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
+  document.getElementById('result-count').textContent='';
+  renderSources();
+
+  try {
+    const dadosBase = await buscarEmpresasApi({ limite: 500 });
+    if (dadosBase.length) {
+      empresasBase = dadosBase;
+      empresas = [...dadosBase];
+      updateKPIs();
+      updateRegionCounts();
+    }
+  } catch (error) {
+    console.warn('Falha ao carregar dados da API; usando base local.', error);
+  }
+
+  await aplicarFiltros();
+}
+
+void inicializarAplicacao();
 </script>
 </body>
 </html>

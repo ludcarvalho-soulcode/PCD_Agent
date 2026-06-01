@@ -114,7 +114,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
 .search-box input::placeholder{color:var(--muted)}
 
 select.filter-sel{border:1px solid var(--line);background:var(--white);border-radius:var(--r);padding:0 12px;height:38px;font-size:12px;color:var(--ink3);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;transition:border-color .15s}
-select.filter-sel:focus{border-color:var(--soul-1);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+/*.selected-filter{border: 2px solid #3b82f6 !important;box-shadow: 0 0 8px rgba(59,130,246,.3);background: #f0f7ff;}*/
+select.filter-sel:focus{border-color:var(--soul-1); box-shadow: 0 0 0 3px rgba(59,130,246,.25);}
 
 .btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif}
 .btn svg{width:15px;height:15px}
@@ -437,6 +438,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <option>Tecnologia</option><option>Serviços</option><option>Construção Civil</option><option>Transporte</option>
           </select>
           <select class="filter-sel" id="fil-ord" onchange="aplicarFiltros()">
+            <option value="">Ordenar por</option>
             <option value="score">Score ↓</option>
             <option value="deficit">Déficit ↓</option>
             <option value="func">Funcionários ↓</option>
@@ -1009,7 +1011,7 @@ async function aplicarFiltros(){
   const org=document.getElementById('fil-orgao').value;
   const sit=document.getElementById('fil-sit').value;
   const set=document.getElementById('fil-setor').value;
-  const ord=document.getElementById('fil-ord').value;
+  const ord=document.getElementById('fil-ord').value|| 'score';
   sortKey=ord;
 
   const seq = ++filtroSeq;
@@ -1035,16 +1037,24 @@ async function aplicarFiltros(){
 
   renderTable(q);
   renderActiveFilters(q,reg,estado,cidade,org,sit,set);
-  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresasBase.length}`;
-  const hasData=filtered.length>0;
-  const btnExport=document.getElementById('btn-export');
-  const btnCsv=document.getElementById('btn-export-csv');
-  const btnXlsx=document.getElementById('btn-export-xlsx');
-  const btnPdf=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
-  if(btnExport) btnExport.disabled=!hasData;
-  if(btnCsv) btnCsv.disabled=!hasData;
-  if(btnXlsx) btnXlsx.disabled=!hasData;
-  if(btnPdf) btnPdf.disabled=!hasData;
+
+  // Resultado e habilitação dos botões de export
+  document.getElementById('result-count').textContent = `— ${filtered.length} de ${empresasBase.length}`;
+  const hasData = filtered.length > 0;
+  const btnExport = document.getElementById('btn-export');
+  const btnCsv = document.getElementById('btn-export-csv');
+  const btnXlsx = document.getElementById('btn-export-xlsx');
+  const btnPdf = document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
+  if (btnExport) btnExport.disabled = !hasData;
+  if (btnCsv) btnCsv.disabled = !hasData;
+  if (btnXlsx) btnXlsx.disabled = !hasData;
+  if (btnPdf) btnPdf.disabled = !hasData;
+
+  // Destaque visual para selects com filtro aplicado (feat/highlight-filtros)
+  document.querySelectorAll('.filter-sel').forEach(select => {
+    if (select.value) select.classList.add('selected-filter');
+    else select.classList.remove('selected-filter');
+  });
 }
 
 function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
@@ -1071,7 +1081,7 @@ function limparFiltros(){
     if(el.tagName==='INPUT') el.value='';
     else el.value='';
   });
-  document.getElementById('fil-ord').value='score';
+  document.getElementById('fil-ord').value='';
   aplicarFiltros();
 }
 

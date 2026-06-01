@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --ink:       #0a0a0f;
@@ -444,15 +445,24 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         </div>
         <div class="toolbar-row">
           <div class="filter-active-row" id="active-filters"></div>
-          <div style="margin-left:auto;display:flex;gap:8px">
-            <button class="btn btn-ghost" onclick="limparFiltros()">
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <button class="btn btn-ghost" id="btn-limpar" onclick="limparFiltros()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               Limpar
             </button>
-            <button class="btn btn-ghost" id="btn-relatorio" onclick="gerarRelatorio()" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Relatório PDF
-            </button>
+            <div style="position:relative">
+              <button class="btn btn-ghost" id="btn-export" onclick="toggleExportMenu()" aria-expanded="false" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar
+              </button>
+              <div id="export-menu" style="display:none;position:absolute;right:0;top:44px;background:var(--white);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.08);border-radius:6px;padding:8px;z-index:80;min-width:160px">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button class="btn btn-ghost" id="btn-export-csv" onclick="exportarCSV()" disabled>Exportar CSV</button>
+                  <button class="btn btn-ghost" id="btn-export-xlsx" onclick="exportarExcel()" disabled>Exportar Excel</button>
+                  <button class="btn btn-ghost" id="btn-export-pdf" onclick="gerarRelatorio()" disabled>Exportar PDF</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -960,7 +970,8 @@ function jobDone(){
   renderAnalytics();
   updateRegionCounts();
   document.getElementById('btn-run').disabled=false;
-  document.getElementById('btn-relatorio').disabled=false;
+  const btnRel = document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
+  if(btnRel) btnRel.disabled = false;
   document.getElementById('nav-count').textContent=empresas.length;
   jobHistory.unshift({id:'job-'+Date.now(),dt:new Date().toLocaleString('pt-BR'),total:empresas.length,regioes:7});
   renderJobs();
@@ -1025,6 +1036,15 @@ async function aplicarFiltros(){
   renderTable(q);
   renderActiveFilters(q,reg,estado,cidade,org,sit,set);
   document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresasBase.length}`;
+  const hasData=filtered.length>0;
+  const btnExport=document.getElementById('btn-export');
+  const btnCsv=document.getElementById('btn-export-csv');
+  const btnXlsx=document.getElementById('btn-export-xlsx');
+  const btnPdf=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
+  if(btnExport) btnExport.disabled=!hasData;
+  if(btnCsv) btnCsv.disabled=!hasData;
+  if(btnXlsx) btnXlsx.disabled=!hasData;
+  if(btnPdf) btnPdf.disabled=!hasData;
 }
 
 function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
@@ -1053,6 +1073,15 @@ function limparFiltros(){
   });
   document.getElementById('fil-ord').value='score';
   aplicarFiltros();
+}
+
+function toggleExportMenu(){
+  const menu = document.getElementById('export-menu');
+  const btn = document.getElementById('btn-export');
+  if(!menu || !btn) return;
+  const open = menu.style.display === 'block';
+  menu.style.display = open ? 'none' : 'block';
+  btn.setAttribute('aria-expanded', String(!open));
 }
 
 // ── TABLE ─────────────────────────────────────────────────────────────
@@ -1391,11 +1420,81 @@ function copiarContato(id){
   toast('Contato copiado para a área de transferência');
 }
 
+function exportarCSV(){
+  if(!filtered.length){
+    toast('Não há dados filtrados para exportar');
+    return;
+  }
+
+  const colunas=[
+    ['Empresa','nome'],['CNPJ','cnpj'],['Setor','setor'],['Região','regiao'],['Estado','estado'],['Cidade','cidade'],
+    ['Órgão','orgao'],['Funcionários','func'],['Cota exigida','exig'],['Cota cumprida','cumpr'],['Déficit','deficit'],
+    ['Score','score'],['Situação','sit'],['Procedimento','proc'],['E-mail','email'],['Telefone','tel'],['Endereço','end']
+  ];
+
+  const escapeCsv=value=>`"${String(value ?? '').replace(/"/g,'""')}"`;
+  const linhas=[
+    colunas.map(([titulo])=>escapeCsv(titulo)).join(','),
+    ...filtered.map(e=>colunas.map(([,campo])=>escapeCsv(campo==='score' ? e.oport.score : e[campo])).join(','))
+  ];
+
+  const blob=new Blob([linhas.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`tac_pcd_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado com sucesso');
+}
+
+function exportarExcel(){
+  if(!filtered.length){
+    toast('Não há dados filtrados para exportar');
+    return;
+  }
+
+  if(typeof XLSX==='undefined'){
+    toast('Biblioteca de Excel não carregou');
+    return;
+  }
+
+  const dados=filtered.map(e=>({
+    Empresa:e.nome,
+    CNPJ:e.cnpj,
+    Setor:e.setor,
+    Região:e.regiao,
+    Estado:e.estado,
+    Cidade:e.cidade,
+    Órgão:e.orgao,
+    Funcionários:e.func,
+    'Cota exigida':e.exig,
+    'Cota cumprida':e.cumpr,
+    Déficit:e.deficit,
+    Score:e.oport.score,
+    Situação:e.sit,
+    Procedimento:e.proc,
+    E_mail:e.email,
+    Telefone:e.tel,
+    Endereço:e.end,
+  }));
+
+  const ws=XLSX.utils.json_to_sheet(dados);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
+  XLSX.writeFile(wb, `tac_pcd_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Excel exportado com sucesso');
+}
+
 // ── RELATÓRIO ─────────────────────────────────────────────────────────
 function gerarRelatorio(){
-  const btn=document.getElementById('btn-relatorio');
-  btn.disabled=true;
-  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Gerando…';
+  const btn=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
+  if(btn){
+    btn.disabled=true;
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Gerando…';
+  }
   setTimeout(()=>{
     const w=window.open('','_blank');
     const rows=filtered.map(e=>`
@@ -1425,8 +1524,10 @@ function gerarRelatorio(){
       <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1000)}<\/script>
     </body></html>`);
     w.document.close();
-    btn.disabled=false;
-    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Relatório PDF';
+    if(btn){
+      btn.disabled=false;
+      btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Relatório PDF';
+    }
     toast('Relatório aberto — use Ctrl+P para salvar como PDF');
   },1200);
 }
@@ -1500,6 +1601,12 @@ async function inicializarAplicacao(){
   document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
   document.getElementById('result-count').textContent='';
   renderSources();
+
+  const btnExport=document.getElementById('btn-export');
+  const btnPdfEl=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
+  if(btnPdfEl){
+    btnPdfEl.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg> Exportar PDF';
+  }
 
   try {
     const dadosBase = await buscarEmpresasApi({ limite: 500 });

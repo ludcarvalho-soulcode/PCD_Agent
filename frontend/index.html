@@ -442,6 +442,13 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         <div class="toolbar-row">
           <div class="filter-active-row" id="active-filters"></div>
           <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="limparFiltros()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Limpar
+            </button>
             <button class="btn btn-ghost" id="btn-relatorio" onclick="gerarRelatorio()" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>

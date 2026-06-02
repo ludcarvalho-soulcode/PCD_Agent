@@ -369,9 +369,9 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         <div class="kpi-delta bad" id="kpi-deficit-d">vagas abertas</div>
       </div>
       <div class="kpi">
-        <div class="kpi-val" id="kpi-regioes" style="color:var(--soul-1)">7</div>
-        <div class="kpi-lbl">Regiões cobertas</div>
-        <div class="kpi-delta up">PRT 1·2·3·4·6·9·15</div>
+        <div class="kpi-val" id="kpi-regioes" style="color:var(--soul-1)">24</div>
+        <div class="kpi-lbl">PRTs cobertas</div>
+        <div class="kpi-delta up">PRT 1·2·3·4·5·6·7·8·9·10...</div>
       </div>
       <div class="kpi">
         <div class="kpi-val" id="kpi-pdfs" style="color:var(--green)">0</div>
@@ -1051,12 +1051,6 @@ function expandedRow(e){
           <div class="exp-field"><div class="exp-label">Procedimento</div><div class="exp-value mono">${e.proc}</div></div>
           <div class="exp-field"><div class="exp-label">Data de abertura</div><div class="exp-value">${e.data}</div></div>
           <div class="exp-field"><div class="exp-label">Órgão</div><div class="exp-value">${e.orgao}</div></div>
-          <div class="exp-section-title" style="margin-top:14px">Cota PCD</div>
-          <div class="cota-boxes">
-            <div class="cota-box"><div class="val">${e.func.toLocaleString('pt-BR')}</div><div class="lbl">Funcionários</div></div>
-            <div class="cota-box"><div class="val">${e.exig}</div><div class="lbl">Exigidos</div></div>
-            <div class="cota-box ${e.deficit>0?'alert':''}"><div class="val">${e.deficit}</div><div class="lbl">Déficit</div></div>
-          </div>
         </div>
         <div>
           <div class="exp-section-title">Contato</div>

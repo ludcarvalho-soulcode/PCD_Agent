@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --ink:       #0a0a0f;
@@ -114,7 +113,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
 .search-box input::placeholder{color:var(--muted)}
 
 select.filter-sel{border:1px solid var(--line);background:var(--white);border-radius:var(--r);padding:0 12px;height:38px;font-size:12px;color:var(--ink3);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;transition:border-color .15s}
-select.filter-sel:focus{border-color:var(--soul-1);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+/*.selected-filter{border: 2px solid #3b82f6 !important;box-shadow: 0 0 8px rgba(59,130,246,.3);background: #f0f7ff;}*/
+select.filter-sel:focus{border-color:var(--soul-1); box-shadow: 0 0 0 3px rgba(59,130,246,.25);}
 
 .btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif}
 .btn svg{width:15px;height:15px}
@@ -400,19 +400,13 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" id="search" placeholder="Buscar empresa, setor, cidade…" oninput="aplicarFiltros()">
           </div>
-          <select class="filter-sel" id="fil-regiao" onchange="preencherEstados(); atualizarCidades(); aplicarFiltros()">
+          <select class="filter-sel" id="fil-regiao" onchange="atualizarPRTs(); aplicarFiltros()">
             <option value="">Todas as regiões</option>
             <option value="Sudeste">Sudeste</option>
             <option value="Sul">Sul</option>
             <option value="Norte">Norte</option>
             <option value="Nordeste">Nordeste</option>
             <option value="Centro-Oeste">Centro-Oeste</option>
-          </select>
-          <select class="filter-sel" id="fil-estado" onchange="atualizarCidades();aplicarFiltros()">
-            <option value="">Todos os estados</option>
-          </select>
-          <select class="filter-sel" id="fil-cidade" onchange="aplicarFiltros()">
-            <option value="">Todas as cidades</option>
           </select>
           <select class="filter-sel" id="fil-orgao" onchange="aplicarFiltros()">
             <option value="">Todos os órgãos</option>
@@ -437,6 +431,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <option>Tecnologia</option><option>Serviços</option><option>Construção Civil</option><option>Transporte</option>
           </select>
           <select class="filter-sel" id="fil-ord" onchange="aplicarFiltros()">
+            <option value="">Ordenar por</option>
             <option value="score">Score ↓</option>
             <option value="deficit">Déficit ↓</option>
             <option value="func">Funcionários ↓</option>
@@ -445,24 +440,15 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         </div>
         <div class="toolbar-row">
           <div class="filter-active-row" id="active-filters"></div>
-          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-            <button class="btn btn-ghost" id="btn-limpar" onclick="limparFiltros()">
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="limparFiltros()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               Limpar
             </button>
-            <div style="position:relative">
-              <button class="btn btn-ghost" id="btn-export" onclick="toggleExportMenu()" aria-expanded="false" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Exportar
-              </button>
-              <div id="export-menu" style="display:none;position:absolute;right:0;top:44px;background:var(--white);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.08);border-radius:6px;padding:8px;z-index:80;min-width:160px">
-                <div style="display:flex;flex-direction:column;gap:6px">
-                  <button class="btn btn-ghost" id="btn-export-csv" onclick="exportarCSV()" disabled>Exportar CSV</button>
-                  <button class="btn btn-ghost" id="btn-export-xlsx" onclick="exportarExcel()" disabled>Exportar Excel</button>
-                  <button class="btn btn-ghost" id="btn-export-pdf" onclick="gerarRelatorio()" disabled>Exportar PDF</button>
-                </div>
-              </div>
-            </div>
+            <button class="btn btn-ghost" id="btn-relatorio" onclick="gerarRelatorio()" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Relatório PDF
+            </button>
           </div>
         </div>
       </div>
@@ -614,96 +600,57 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
 </div>
 
 <script>
-// Lista completa de UFs do Brasil
-const UFS_BR = [
-  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
-];
-// Principais cidades por estado (capitais)
-const CIDADES_POR_UF = {
-  'AC': ['Rio Branco'],
-  'AL': ['Maceió'],
-  'AP': ['Macapá'],
-  'AM': ['Manaus'],
-  'BA': ['Salvador'],
-  'CE': ['Fortaleza'],
-  'DF': ['Brasília'],
-  'ES': ['Vitória'],
-  'GO': ['Goiânia'],
-  'MA': ['São Luís'],
-  'MT': ['Cuiabá'],
-  'MS': ['Campo Grande'],
-  'MG': ['Belo Horizonte', 'Uberlândia'],
-  'PA': ['Belém'],
-  'PB': ['João Pessoa'],
-  'PR': ['Curitiba', 'Ponta Grossa'],
-  'PE': ['Recife', 'Caruaru'],
-  'PI': ['Teresina'],
-  'RJ': ['Rio de Janeiro'],
-  'RN': ['Natal'],
-  'RS': ['Porto Alegre'],
-  'RO': ['Porto Velho'],
-  'RR': ['Boa Vista'],
-  'SC': ['Florianópolis', 'Joinville'],
-  'SP': ['São Paulo', 'Campinas', 'Guarulhos'],
-  'SE': ['Aracaju'],
-  'TO': ['Palmas']
+//Branch Prt Geovana
+const PRTS_POR_REGIAO = {
+  'Sudeste': [
+    'PRT1 — Rio de Janeiro',
+    'PRT2 — São Paulo',
+    'PRT3 — Minas Gerais',
+    'PRT15 — Campinas',
+    'PRT17 — Espírito Santo'
+  ],
+  'Sul': [
+    'PRT4 — Rio Grande do Sul',
+    'PRT9 — Paraná',
+    'PRT12 — Santa Catarina'
+  ],
+  'Nordeste': [
+    'PRT5 — Bahia',
+    'PRT6 — Pernambuco',
+    'PRT7 — Ceará',
+    'PRT13 — Paraíba',
+    'PRT16 — Maranhão',
+    'PRT19 — Alagoas',
+    'PRT20 — Sergipe',
+    'PRT21 — Rio Grande do Norte',
+    'PRT22 — Piauí'
+  ],
+  'Centro-Oeste': [
+    'PRT10 — Distrito Federal e Tocantins',
+    'PRT18 — Goiás',
+    'PRT23 — Mato Grosso',
+    'PRT24 — Mato Grosso do Sul'
+  ],
+  'Norte': [
+    'PRT8 — Pará e Amapá',
+    'PRT11 — Amazonas e Roraima',
+    'PRT14 — Rondônia e Acre'
+  ]
 };
 
-// Mapeamento de regiões para UFs
-const REGIOES_UF = {
-  'Sudeste': ['SP', 'RJ', 'MG', 'ES'],
-  'Sul': ['RS', 'SC', 'PR'],
-  'Centro-Oeste': ['GO', 'MT', 'MS', 'DF'],
-  'Nordeste': ['BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA'],
-  'Norte': ['AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC']
-};
+const TODAS_PRTS = Object.values(PRTS_POR_REGIAO).flat();
 
-function preencherEstados() {
+function atualizarPRTs() {
   const regiao = document.getElementById('fil-regiao').value;
-  let estados = [];
-  if (regiao && REGIOES_UF[regiao]) {
-    estados = REGIOES_UF[regiao];
-  } else {
-    estados = UFS_BR;
-  }
-  const sel = document.getElementById('fil-estado');
-  sel.innerHTML = '<option value="">Todos os estados</option>' + estados.map(uf => `<option value="${uf}">${uf}</option>`).join('');
-}
+  const selOrgao = document.getElementById('fil-orgao');
 
-function atualizarCidades() {
-  const estado = document.getElementById('fil-estado').value;
-  const sel = document.getElementById('fil-cidade');
+  const prts = regiao && PRTS_POR_REGIAO[regiao]
+    ? PRTS_POR_REGIAO[regiao]
+    : TODAS_PRTS;
 
-  sel.innerHTML = '<option value="">Todas as cidades</option>';
-
-  if (!estado) return;
-
-  fetch(`http://127.0.0.1:8000/api/cidades/${estado}`)
-    .then(resp => resp.json())
-    .then(data => {
-      const cidades = Array.isArray(data) ? data : data.cidades;
-
-      if (Array.isArray(cidades)) {
-        sel.innerHTML = '<option value="">Todas as cidades</option>';
-
-        cidades.forEach(cidade => {
-          const option = document.createElement('option');
-          option.value = cidade;
-          option.textContent = cidade;
-          sel.appendChild(option);
-        });
-      }
-    })
-    .catch(() => {
-      const cidadesLocais = CIDADES_POR_UF[estado] || [];
-
-      cidadesLocais.forEach(cidade => {
-        const option = document.createElement('option');
-        option.value = cidade;
-        option.textContent = cidade;
-        sel.appendChild(option);
-      });
-    });
+  selOrgao.innerHTML =
+    '<option value="">Todos os órgãos</option>' +
+    prts.map(prt => `<option value="${prt}">${prt}</option>`).join('');
 }
 // ── DATA ──────────────────────────────────────────────────────────────
 const FONTES = [
@@ -749,7 +696,7 @@ const DB = [
 ];
 
 // Enriquecer com score Gemini e perfis
-let empresasBase = DB.map((e,i)=>{
+const empresas = DB.map((e,i)=>{
   const deficit = Math.max(0, e.exig - e.cumpr);
   const score = Math.min(10, Math.round(2 + (deficit/Math.max(e.exig,1))*8));
   return {
@@ -765,124 +712,12 @@ let empresasBase = DB.map((e,i)=>{
   };
 });
 
-let empresas = [...empresasBase];
-
 let filtered = [];
 let currentPdfEmpresa = null;
 let jobHistory = [];
 let pdfCount = 0;
 let expandedId = null;
 let sortKey = 'score'; let sortDir = -1;
-let filtroSeq = 0;
-
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
-
-const REGIAO_POR_UF = Object.fromEntries(
-  Object.entries(REGIOES_UF).flatMap(([regiao, ufs]) => ufs.map(uf => [uf, regiao]))
-);
-
-function regiaoPorUf(uf){
-  return REGIAO_POR_UF[(uf || '').toUpperCase()] || '';
-}
-
-function extrairUfDeEndereco(endereco){
-  const valor = String(endereco || '');
-  const match = valor.match(/\/\s*([A-Z]{2})\b/);
-  return match ? match[1].toUpperCase() : '';
-}
-
-function extrairCidadeDeEndereco(endereco){
-  const valor = String(endereco || '');
-  const match = valor.match(/(?:—|,)\s*([^/,—]+?)\s*\/\s*[A-Z]{2}\b/);
-  return match ? match[1].trim() : '';
-}
-
-function normalizarEmpresaApi(e, index=0){
-  const endereco = e.endereco || e.end || '';
-  const estado = (e.estado || e.uf || extrairUfDeEndereco(endereco)).toString().toUpperCase();
-  const cidade = e.cidade || extrairCidadeDeEndereco(endereco);
-  const exig = Number(e.cota_exigida ?? e.exig ?? 0) || 0;
-  const cumpr = Number(e.cota_cumprida ?? e.cumpr ?? 0) || 0;
-  const deficit = Math.max(0, Number(e.deficit ?? (exig - cumpr)) || 0);
-  const scoreBase = Number(e?.oportunidade?.score_oportunidade ?? e?.oport?.score);
-  const score = Number.isFinite(scoreBase)
-    ? scoreBase
-    : Math.min(10, Math.round(2 + (deficit / Math.max(exig, 1)) * 8));
-  const nivel = e?.oportunidade?.nivel || e?.oport?.nivel || (score >= 7 ? 'Alta' : score >= 4 ? 'Média' : 'Baixa');
-  const recomendacao = e?.oportunidade?.recomendacao || e?.oport?.rec || (deficit > 0
-    ? `Empresa com déficit de ${deficit} vaga(s) PCD. Oportunidade concreta para inserção imediata de candidatos.`
-    : 'Cota cumprida. Manter relacionamento para futuras reposições.');
-
-  return {
-    ...e,
-    id: e.id || `api-${index}`,
-    nome: e.razao_social || e.nome || '',
-    func: Number(e.num_funcionarios ?? e.func ?? 0) || 0,
-    exig,
-    cumpr,
-    deficit,
-    sit: e.situacao || e.sit || '',
-    orgao: e.orgao || '',
-    proc: e.numero_procedimento || e.proc || '',
-    data: e.data_abertura || e.data || '',
-    cnpj: e.cnpj || '',
-    email: e.email || '',
-    tel: e.telefone || e.tel || '',
-    end: endereco,
-    estado,
-    cidade,
-    regiao: e.regiao || regiaoPorUf(estado),
-    pdfUrl: e.pdf_url || e.pdfUrl || null,
-    perfis: Array.isArray(e.perfis) ? e.perfis : PERFIS_POOL[index % PERFIS_POOL.length],
-    oport: {
-      score,
-      nivel,
-      rec: recomendacao,
-    },
-  };
-}
-
-async function buscarEmpresasApi(filtros={}){
-  const params = new URLSearchParams();
-  if (filtros.busca) params.set('busca', filtros.busca);
-  if (filtros.regiao) params.set('regiao', filtros.regiao);
-  if (filtros.estado) params.set('estado', filtros.estado);
-  if (filtros.cidade) params.set('cidade', filtros.cidade);
-  if (filtros.orgao) params.set('orgao', filtros.orgao);
-  if (filtros.situacao) params.set('situacao', filtros.situacao);
-  if (filtros.setor) params.set('setor', filtros.setor);
-  params.set('limite', String(filtros.limite || 500));
-
-  const resp = await fetch(`${API_BASE_URL}/empresas?${params.toString()}`);
-  if (!resp.ok) {
-    throw new Error(`API retornou status ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  return Array.isArray(data) ? data.map((item, index) => normalizarEmpresaApi(item, index)) : [];
-}
-
-function filtrarLocalmente(base, filtros){
-  const q = (filtros.busca || '').trim().toLowerCase();
-  const reg = filtros.regiao || '';
-  const estado = filtros.estado || '';
-  const cidade = filtros.cidade || '';
-  const org = filtros.orgao || '';
-  const sit = filtros.situacao || '';
-  const set = filtros.setor || '';
-
-  return base.filter(e => {
-    if (e.func < 100) return false;
-    if (q && !`${e.nome} ${e.setor} ${e.cidade} ${e.end} ${e.orgao}`.toLowerCase().includes(q)) return false;
-    if (reg && e.regiao !== reg) return false;
-    if (estado && e.estado !== estado.toUpperCase()) return false;
-    if (cidade && !String(e.cidade || '').toLowerCase().includes(cidade.toLowerCase())) return false;
-    if (org && e.orgao !== org) return false;
-    if (sit && e.sit !== sit) return false;
-    if (set && e.setor !== set) return false;
-    return true;
-  });
-}
 
 // ── UTILS ─────────────────────────────────────────────────────────────
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
@@ -970,8 +805,7 @@ function jobDone(){
   renderAnalytics();
   updateRegionCounts();
   document.getElementById('btn-run').disabled=false;
-  const btnRel = document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
-  if(btnRel) btnRel.disabled = false;
+  document.getElementById('btn-relatorio').disabled=false;
   document.getElementById('nav-count').textContent=empresas.length;
   jobHistory.unshift({id:'job-'+Date.now(),dt:new Date().toLocaleString('pt-BR'),total:empresas.length,regioes:7});
   renderJobs();
@@ -1000,31 +834,25 @@ function updateRegionCounts(){
 }
 
 // ── FILTERS ──────────────────────────────────────────────────────────
-async function aplicarFiltros(){
+function aplicarFiltros(){
   if(!empresas.length) return;
   const q=document.getElementById('search').value.trim().toLowerCase();
   const reg=document.getElementById('fil-regiao').value;
-  const estado=document.getElementById('fil-estado').value;
-  const cidade=document.getElementById('fil-cidade').value;
   const org=document.getElementById('fil-orgao').value;
   const sit=document.getElementById('fil-sit').value;
   const set=document.getElementById('fil-setor').value;
-  const ord=document.getElementById('fil-ord').value;
+  const ord=document.getElementById('fil-ord').value|| 'score';
   sortKey=ord;
 
-  const seq = ++filtroSeq;
-  const filtros = { busca: q, regiao: reg, estado, cidade, orgao: org, situacao: sit, setor: set, limite: 500 };
-
-  let listaFiltrada = [];
-  try {
-    listaFiltrada = await buscarEmpresasApi(filtros);
-  } catch (error) {
-    listaFiltrada = filtrarLocalmente(empresasBase, filtros);
-  }
-
-  if (seq !== filtroSeq) return;
-
-  filtered = listaFiltrada;
+  filtered=empresas.filter(e=>{
+    if(e.func<100) return false; // sempre 100+
+    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
+    if(reg&&e.regiao!==reg)return false;
+    if(org&&e.orgao!==org)return false;
+    if(sit&&e.sit!==sit)return false;
+    if(set&&e.setor!==set)return false;
+    return true;
+  });
 
   filtered.sort((a,b)=>{
     if(ord==='score') return b.oport.score-a.oport.score;
@@ -1035,25 +863,21 @@ async function aplicarFiltros(){
 
   renderTable(q);
   renderActiveFilters(q,reg,estado,cidade,org,sit,set);
-  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresasBase.length}`;
-  const hasData=filtered.length>0;
-  const btnExport=document.getElementById('btn-export');
-  const btnCsv=document.getElementById('btn-export-csv');
-  const btnXlsx=document.getElementById('btn-export-xlsx');
-  const btnPdf=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
-  if(btnExport) btnExport.disabled=!hasData;
-  if(btnCsv) btnCsv.disabled=!hasData;
-  if(btnXlsx) btnXlsx.disabled=!hasData;
-  if(btnPdf) btnPdf.disabled=!hasData;
+  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
+  document.querySelectorAll('.filter-sel').forEach(select => {
+  if (select.value) {
+    select.classList.add('selected-filter');
+  } else {
+    select.classList.remove('selected-filter');
+  }
+});
 }
 
-function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
+function renderActiveFilters(q,reg,org,sit,set){
   const row=document.getElementById('active-filters');
   const chips=[];
   if(q) chips.push({label:`"${q}"`,clear:()=>{document.getElementById('search').value='';aplicarFiltros();}});
   if(reg) chips.push({label:`Região: ${reg}`,clear:()=>{document.getElementById('fil-regiao').value='';aplicarFiltros();}});
-  if(estado) chips.push({label:`Estado: ${estado}`,clear:()=>{document.getElementById('fil-estado').value='';aplicarFiltros();}});
-  if(cidade) chips.push({label:`Cidade: ${cidade}`,clear:()=>{document.getElementById('fil-cidade').value='';aplicarFiltros();}});
   if(org) chips.push({label:org.split('—')[0].trim(),clear:()=>{document.getElementById('fil-orgao').value='';aplicarFiltros();}});
   if(sit) chips.push({label:sit,clear:()=>{document.getElementById('fil-sit').value='';aplicarFiltros();}});
   if(set) chips.push({label:set,clear:()=>{document.getElementById('fil-setor').value='';aplicarFiltros();}});
@@ -1065,23 +889,23 @@ function renderActiveFilters(q,reg,estado,cidade,org,sit,set){
   }
 }
 
-function limparFiltros(){
-  ['search','fil-regiao','fil-estado','fil-cidade','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el.tagName==='INPUT') el.value='';
-    else el.value='';
-  });
-  document.getElementById('fil-ord').value='score';
-  aplicarFiltros();
-}
+function limparFiltros() {
+  ['search','fil-regiao','fil-orgao','fil-sit','fil-setor'].forEach(id => {
+    const el = document.getElementById(id);
 
-function toggleExportMenu(){
-  const menu = document.getElementById('export-menu');
-  const btn = document.getElementById('btn-export');
-  if(!menu || !btn) return;
-  const open = menu.style.display === 'block';
-  menu.style.display = open ? 'none' : 'block';
-  btn.setAttribute('aria-expanded', String(!open));
+    if (!el) return;
+
+    if (el.tagName === 'INPUT') {
+      el.value = '';
+    } else {
+      el.value = '';
+    }
+  });
+
+  document.getElementById('fil-ord').value = '';
+
+  atualizarPRTs();
+  aplicarFiltros();
 }
 
 // ── TABLE ─────────────────────────────────────────────────────────────
@@ -1420,81 +1244,11 @@ function copiarContato(id){
   toast('Contato copiado para a área de transferência');
 }
 
-function exportarCSV(){
-  if(!filtered.length){
-    toast('Não há dados filtrados para exportar');
-    return;
-  }
-
-  const colunas=[
-    ['Empresa','nome'],['CNPJ','cnpj'],['Setor','setor'],['Região','regiao'],['Estado','estado'],['Cidade','cidade'],
-    ['Órgão','orgao'],['Funcionários','func'],['Cota exigida','exig'],['Cota cumprida','cumpr'],['Déficit','deficit'],
-    ['Score','score'],['Situação','sit'],['Procedimento','proc'],['E-mail','email'],['Telefone','tel'],['Endereço','end']
-  ];
-
-  const escapeCsv=value=>`"${String(value ?? '').replace(/"/g,'""')}"`;
-  const linhas=[
-    colunas.map(([titulo])=>escapeCsv(titulo)).join(','),
-    ...filtered.map(e=>colunas.map(([,campo])=>escapeCsv(campo==='score' ? e.oport.score : e[campo])).join(','))
-  ];
-
-  const blob=new Blob([linhas.join('\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`tac_pcd_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  toast('CSV exportado com sucesso');
-}
-
-function exportarExcel(){
-  if(!filtered.length){
-    toast('Não há dados filtrados para exportar');
-    return;
-  }
-
-  if(typeof XLSX==='undefined'){
-    toast('Biblioteca de Excel não carregou');
-    return;
-  }
-
-  const dados=filtered.map(e=>({
-    Empresa:e.nome,
-    CNPJ:e.cnpj,
-    Setor:e.setor,
-    Região:e.regiao,
-    Estado:e.estado,
-    Cidade:e.cidade,
-    Órgão:e.orgao,
-    Funcionários:e.func,
-    'Cota exigida':e.exig,
-    'Cota cumprida':e.cumpr,
-    Déficit:e.deficit,
-    Score:e.oport.score,
-    Situação:e.sit,
-    Procedimento:e.proc,
-    E_mail:e.email,
-    Telefone:e.tel,
-    Endereço:e.end,
-  }));
-
-  const ws=XLSX.utils.json_to_sheet(dados);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
-  XLSX.writeFile(wb, `tac_pcd_${new Date().toISOString().slice(0,10)}.xlsx`);
-  toast('Excel exportado com sucesso');
-}
-
 // ── RELATÓRIO ─────────────────────────────────────────────────────────
 function gerarRelatorio(){
-  const btn=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
-  if(btn){
-    btn.disabled=true;
-    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Gerando…';
-  }
+  const btn=document.getElementById('btn-relatorio');
+  btn.disabled=true;
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Gerando…';
   setTimeout(()=>{
     const w=window.open('','_blank');
     const rows=filtered.map(e=>`
@@ -1524,10 +1278,8 @@ function gerarRelatorio(){
       <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1000)}<\/script>
     </body></html>`);
     w.document.close();
-    if(btn){
-      btn.disabled=false;
-      btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Relatório PDF';
-    }
+    btn.disabled=false;
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Relatório PDF';
     toast('Relatório aberto — use Ctrl+P para salvar como PDF');
   },1200);
 }
@@ -1597,33 +1349,9 @@ function filtrarRegiao(reg,el){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
-async function inicializarAplicacao(){
-  document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
-  document.getElementById('result-count').textContent='';
-  renderSources();
-
-  const btnExport=document.getElementById('btn-export');
-  const btnPdfEl=document.getElementById('btn-export-pdf') || document.getElementById('btn-relatorio');
-  if(btnPdfEl){
-    btnPdfEl.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg> Exportar PDF';
-  }
-
-  try {
-    const dadosBase = await buscarEmpresasApi({ limite: 500 });
-    if (dadosBase.length) {
-      empresasBase = dadosBase;
-      empresas = [...dadosBase];
-      updateKPIs();
-      updateRegionCounts();
-    }
-  } catch (error) {
-    console.warn('Falha ao carregar dados da API; usando base local.', error);
-  }
-
-  await aplicarFiltros();
-}
-
-void inicializarAplicacao();
+document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
+document.getElementById('result-count').textContent='';
+renderSources();
 </script>
 </body>
 </html>

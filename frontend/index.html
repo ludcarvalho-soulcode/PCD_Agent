@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --ink:       #0a0a0f;
@@ -441,14 +442,23 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         <div class="toolbar-row">
           <div class="filter-active-row" id="active-filters"></div>
           <div style="margin-left:auto;display:flex;gap:8px">
-            <button class="btn btn-ghost" onclick="limparFiltros()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              Limpar
-            </button>
             <button class="btn btn-ghost" id="btn-relatorio" onclick="gerarRelatorio()" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Relatório PDF
-            </button>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Relatório PDF
+    </button>
+
+    <button class="btn btn-ghost" id="btn-export-csv" onclick="exportarCSV()" disabled>
+      CSV
+    </button>
+
+    <button class="btn btn-ghost" id="btn-export-xlsx" onclick="exportarExcel()" disabled>
+      Excel
+    </button>
           </div>
         </div>
       </div>
@@ -798,18 +808,39 @@ function runAgent(){
   },220);
 }
 
-function jobDone(){
-  filtered=[...empresas];
+function jobDone() {
+  filtered = [...empresas];
+
   updateKPIs();
   aplicarFiltros();
   renderAnalytics();
   updateRegionCounts();
-  document.getElementById('btn-run').disabled=false;
-  document.getElementById('btn-relatorio').disabled=false;
-  document.getElementById('nav-count').textContent=empresas.length;
-  jobHistory.unshift({id:'job-'+Date.now(),dt:new Date().toLocaleString('pt-BR'),total:empresas.length,regioes:7});
+
+  document.getElementById('btn-run').disabled = false;
+
+  const btnRelatorio = document.getElementById('btn-relatorio');
+  const btnExport = document.getElementById('btn-export');
+  const btnCsv = document.getElementById('btn-export-csv');
+  const btnXlsx = document.getElementById('btn-export-xlsx');
+
+  if (btnRelatorio) btnRelatorio.disabled = false;
+  if (btnExport) btnExport.disabled = false;
+  if (btnCsv) btnCsv.disabled = false;
+  if (btnXlsx) btnXlsx.disabled = false;
+
+  document.getElementById('nav-count').textContent = empresas.length;
+
+  jobHistory.unshift({
+    id: 'job-' + Date.now(),
+    dt: new Date().toLocaleString('pt-BR'),
+    total: empresas.length,
+    regioes: 7
+  });
+
   renderJobs();
-  toast(empresas.length+' empresas identificadas e salvas no Firestore');
+
+  toast(empresas.length + ' empresas identificadas e salvas no Firestore');
+
   setView('empresas', document.querySelector('.nav-item.active'));
 }
 
@@ -834,43 +865,66 @@ function updateRegionCounts(){
 }
 
 // ── FILTERS ──────────────────────────────────────────────────────────
-function aplicarFiltros(){
-  if(!empresas.length) return;
-  const q=document.getElementById('search').value.trim().toLowerCase();
-  const reg=document.getElementById('fil-regiao').value;
-  const org=document.getElementById('fil-orgao').value;
-  const sit=document.getElementById('fil-sit').value;
-  const set=document.getElementById('fil-setor').value;
-  const ord=document.getElementById('fil-ord').value|| 'score';
-  sortKey=ord;
+function aplicarFiltros() {
+  if (!empresas.length) return;
 
-  filtered=empresas.filter(e=>{
-    if(e.func<100) return false; // sempre 100+
-    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
-    if(reg&&e.regiao!==reg)return false;
-    if(org&&e.orgao!==org)return false;
-    if(sit&&e.sit!==sit)return false;
-    if(set&&e.setor!==set)return false;
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const reg = document.getElementById('fil-regiao').value;
+  const org = document.getElementById('fil-orgao').value;
+  const sit = document.getElementById('fil-sit').value;
+  const set = document.getElementById('fil-setor').value;
+  const ord = document.getElementById('fil-ord').value || 'score';
+
+  sortKey = ord;
+
+  filtered = empresas.filter(e => {
+    if (e.func < 100) return false;
+
+    if (
+      q &&
+      !e.nome.toLowerCase().includes(q) &&
+      !e.setor.toLowerCase().includes(q) &&
+      !e.cidade.toLowerCase().includes(q) &&
+      !e.orgao.toLowerCase().includes(q)
+    ) return false;
+
+    if (reg && e.regiao !== reg) return false;
+    if (org && e.orgao !== org) return false;
+    if (sit && e.sit !== sit) return false;
+    if (set && e.setor !== set) return false;
+
     return true;
   });
 
-  filtered.sort((a,b)=>{
-    if(ord==='score') return b.oport.score-a.oport.score;
-    if(ord==='deficit') return b.deficit-a.deficit;
-    if(ord==='func') return b.func-a.func;
+  filtered.sort((a, b) => {
+    if (ord === 'score') return b.oport.score - a.oport.score;
+    if (ord === 'deficit') return b.deficit - a.deficit;
+    if (ord === 'func') return b.func - a.func;
     return a.nome.localeCompare(b.nome);
   });
 
   renderTable(q);
-  renderActiveFilters(q,reg,estado,cidade,org,sit,set);
-  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
+  renderActiveFilters(q, reg, org, sit, set);
+
+  document.getElementById('result-count').textContent = `— ${filtered.length} de ${empresas.length}`;
+
+  const hasData = filtered.length > 0;
+
+  const btnExport = document.getElementById('btn-export');
+  const btnCsv = document.getElementById('btn-export-csv');
+  const btnXlsx = document.getElementById('btn-export-xlsx');
+
+  if (btnExport) btnExport.disabled = !hasData;
+  if (btnCsv) btnCsv.disabled = !hasData;
+  if (btnXlsx) btnXlsx.disabled = !hasData;
+
   document.querySelectorAll('.filter-sel').forEach(select => {
-  if (select.value) {
-    select.classList.add('selected-filter');
-  } else {
-    select.classList.remove('selected-filter');
-  }
-});
+    if (select.value) {
+      select.classList.add('selected-filter');
+    } else {
+      select.classList.remove('selected-filter');
+    }
+  });
 }
 
 function renderActiveFilters(q,reg,org,sit,set){
@@ -1242,6 +1296,93 @@ function copiarContato(id){
   const txt=`${e.nome}\nCNPJ: ${e.cnpj}\nEndereço: ${e.end}\nE-mail: ${e.email}\nTelefone: ${e.tel}\nProcedimento: ${e.proc}\nDéficit PCD: ${e.deficit} vaga(s)`;
   navigator.clipboard.writeText(txt).catch(()=>{});
   toast('Contato copiado para a área de transferência');
+}
+
+function exportarCSV() {
+  if (!filtered.length) {
+    toast('Não há dados filtrados para exportar');
+    return;
+  }
+
+  const colunas = [
+    ['Empresa','nome'],
+    ['CNPJ','cnpj'],
+    ['Setor','setor'],
+    ['Região','regiao'],
+    ['Órgão','orgao'],
+    ['Funcionários','func'],
+    ['Cota exigida','exig'],
+    ['Cota cumprida','cumpr'],
+    ['Déficit','deficit'],
+    ['Score','score'],
+    ['Situação','sit'],
+    ['Procedimento','proc'],
+    ['E-mail','email'],
+    ['Telefone','tel'],
+    ['Endereço','end']
+  ];
+
+  const escapeCsv = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+  const linhas = [
+    colunas.map(([titulo]) => escapeCsv(titulo)).join(','),
+    ...filtered.map(e =>
+      colunas.map(([, campo]) =>
+        escapeCsv(campo === 'score' ? e.oport.score : e[campo])
+      ).join(',')
+    )
+  ];
+
+  const blob = new Blob([linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tac_pcd_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+  toast('CSV exportado com sucesso');
+}
+
+function exportarExcel() {
+  if (!filtered.length) {
+    toast('Não há dados filtrados para exportar');
+    return;
+  }
+
+  if (typeof XLSX === 'undefined') {
+    toast('Biblioteca de Excel não carregou');
+    return;
+  }
+
+  const dados = filtered.map(e => ({
+    Empresa: e.nome,
+    CNPJ: e.cnpj,
+    Setor: e.setor,
+    Região: e.regiao,
+    Órgão: e.orgao,
+    Funcionários: e.func,
+    'Cota exigida': e.exig,
+    'Cota cumprida': e.cumpr,
+    Déficit: e.deficit,
+    Score: e.oport.score,
+    Situação: e.sit,
+    Procedimento: e.proc,
+    E_mail: e.email,
+    Telefone: e.tel,
+    Endereço: e.end
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(dados);
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
+  XLSX.writeFile(wb, `tac_pcd_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+  toast('Excel exportado com sucesso');
 }
 
 // ── RELATÓRIO ─────────────────────────────────────────────────────────

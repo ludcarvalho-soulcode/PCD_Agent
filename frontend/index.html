@@ -608,68 +608,67 @@ const FONTES = [
   {regiao:'Nordeste',url:'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT6 — Pernambuco'},
 ];
 
-const PERFIS_POOL = [
-  ['Auxiliar administrativo','Operador de caixa','Assistente de estoque'],
-  ['Motorista cat. D','Ajudante de logística','Conferente de carga'],
-  ['Operador de produção','Auxiliar de linha','Embalador/a'],
-  ['Recepcionista','Assistente de RH','Digitador/a'],
-  ['Atendente SAC','Auxiliar financeiro','Assistente fiscal'],
-  ['Auxiliar de limpeza','Porteiro/a','Auxiliar de serviços gerais'],
-];
+// ── CONFIGURAÇÃO DA API ───────────────────────────────────────────────
+const API_URL = 'https://tac-pcd-backend-1040741551146.us-central1.run.app';
 
-const DB = [
-  {nome:'Metalúrgica Paulista Ltda',setor:'Indústria',regiao:'Sul',estado:'RS',cidade:'Porto Alegre',orgao:'PRT4 — Rio Grande do Sul',func:520,exig:14,cumpr:3,sit:'TAC descumprido',proc:'IC-000341/2023-PRT4',data:'14/03/2023',cnpj:'82.345.678/0001-91',email:'rh@metalurgicapaulista.com.br',tel:'(51) 3252-8800',end:'Av. Farrapos, 1840 — Porto Alegre/RS, CEP 90220-006'},
-  {nome:'Supermercados BomPreço S.A.',setor:'Varejo',regiao:'Sudeste',estado:'RJ',cidade:'Rio de Janeiro',orgao:'PRT1 — Rio de Janeiro',func:2200,exig:88,cumpr:42,sit:'TAC em cumprimento',proc:'IC-000512/2022-PRT1',data:'07/09/2022',cnpj:'14.789.012/0001-45',email:'compliance@bompreco.com.br',tel:'(21) 3030-9900',end:'Rua Marechal Floriano, 820 — Rio de Janeiro/RJ, CEP 20080-005'},
-  {nome:'Construtora Horizonte',setor:'Construção Civil',regiao:'Sudeste',estado:'MG',cidade:'Belo Horizonte',orgao:'PRT3 — Minas Gerais',func:680,exig:20,cumpr:4,sit:'TAC descumprido',proc:'IC-000198/2023-PRT3',data:'22/01/2023',cnpj:'33.210.456/0001-72',email:'rh@horizonte.eng.br',tel:'(31) 3274-5500',end:'Av. Afonso Pena, 3500 — Belo Horizonte/MG, CEP 30130-009'},
-  {nome:'TransLog Brasil Ltda',setor:'Logística',regiao:'Sudeste',estado:'SP',cidade:'Campinas',orgao:'PRT15 — Campinas',func:890,exig:27,cumpr:11,sit:'TAC em cumprimento',proc:'IC-000729/2023-PRT15',data:'30/05/2023',cnpj:'57.890.123/0001-38',email:'rh@translogbrasil.com.br',tel:'(19) 3735-2200',end:'Rod. Dom Pedro I, km 132 — Campinas/SP, CEP 13087-010'},
-  {nome:'Frigorífico Norte SP',setor:'Alimentício',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:310,exig:8,cumpr:1,sit:'TAC descumprido',proc:'IC-000402/2022-PRT2',data:'11/06/2022',cnpj:'91.234.567/0001-12',email:'rh@frigorificonorte.com.br',tel:'(11) 3987-4400',end:'Av. do Estado, 4500 — São Paulo/SP, CEP 03102-000'},
-  {nome:'Banco Meridional S.A.',setor:'Financeiro',regiao:'Sul',estado:'PR',cidade:'Curitiba',orgao:'PRT9 — Paraná',func:3400,exig:136,cumpr:71,sit:'TAC em cumprimento',proc:'IC-000855/2022-PRT9',data:'18/10/2022',cnpj:'12.098.765/0001-55',email:'ouvidoria@bancomeridional.com.br',tel:'(41) 3320-7700',end:'Rua XV de Novembro, 722 — Curitiba/PR, CEP 80020-310'},
-  {nome:'Hospital e Clínica São Mateus',setor:'Saúde',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:1150,exig:46,cumpr:19,sit:'TAC em cumprimento',proc:'IC-000631/2023-PRT2',data:'04/04/2023',cnpj:'45.678.901/0001-67',email:'rh@clinicasaomateus.com.br',tel:'(11) 4550-2200',end:'Rua Vergueiro, 3185 — São Paulo/SP, CEP 04101-300'},
-  {nome:'Viação Expresso Guarulhos',setor:'Transporte',regiao:'Sudeste',estado:'SP',cidade:'Guarulhos',orgao:'PRT2 — São Paulo',func:720,exig:22,cumpr:7,sit:'TAC descumprido',proc:'IC-000487/2023-PRT2',data:'19/07/2023',cnpj:'67.890.234/0001-89',email:'rh@expressogru.com.br',tel:'(11) 2429-9900',end:'Av. Monteiro Lobato, 1200 — Guarulhos/SP, CEP 07111-000'},
-  {nome:'Grupo Pão de Mel Alimentos',setor:'Alimentício',regiao:'Nordeste',estado:'PE',cidade:'Recife',orgao:'PRT6 — Pernambuco',func:1800,exig:72,cumpr:28,sit:'TAC em cumprimento',proc:'IC-000314/2023-PRT6',data:'08/03/2023',cnpj:'23.456.789/0001-34',email:'compliance@paodemel.com.br',tel:'(81) 3425-6600',end:'Av. Caxangá, 3450 — Recife/PE, CEP 50731-000'},
-  {nome:'Construtora Delta Obras',setor:'Construção Civil',regiao:'Sul',estado:'RS',cidade:'Porto Alegre',orgao:'PRT4 — Rio Grande do Sul',func:210,exig:5,cumpr:0,sit:'TAC descumprido',proc:'IC-000276/2023-PRT4',data:'27/02/2023',cnpj:'78.901.234/0001-01',email:'rh@deltaobras.com.br',tel:'(51) 3378-3300',end:'Rua Siqueira Campos, 1100 — Porto Alegre/RS, CEP 90010-110'},
-  {nome:'GigaFoods Distribuição',setor:'Alimentício',regiao:'Sudeste',estado:'MG',cidade:'Uberlândia',orgao:'PRT3 — Minas Gerais',func:540,exig:16,cumpr:6,sit:'TAC em cumprimento',proc:'IC-000445/2022-PRT3',data:'15/11/2022',cnpj:'34.567.890/0001-23',email:'rh@gigafoods.com.br',tel:'(34) 3239-4400',end:'Av. Rondon Pacheco, 4600 — Uberlândia/MG, CEP 38400-382'},
-  {nome:'Limpex Serviços Gerais',setor:'Serviços',regiao:'Sudeste',estado:'RJ',cidade:'Rio de Janeiro',orgao:'PRT1 — Rio de Janeiro',func:2900,exig:116,cumpr:55,sit:'TAC em cumprimento',proc:'IC-000780/2022-PRT1',data:'20/12/2022',cnpj:'56.789.012/0001-90',email:'rh@limpex.com.br',tel:'(21) 2519-8800',end:'Av. Brasil, 28000 — Rio de Janeiro/RJ, CEP 21042-020'},
-  {nome:'Pharma Nacional Ltda',setor:'Saúde',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:980,exig:34,cumpr:14,sit:'TAC em cumprimento',proc:'IC-000559/2023-PRT2',data:'11/08/2023',cnpj:'89.012.345/0001-56',email:'dp@pharmanacional.com.br',tel:'(11) 5507-3300',end:'Av. Rebouças, 3800 — São Paulo/SP, CEP 05402-600'},
-  {nome:'AutoPeças Centro-Oeste',setor:'Varejo',regiao:'Centro-Oeste',estado:'GO',cidade:'Goiânia',orgao:'PRT18 — Goiás',func:420,exig:11,cumpr:3,sit:'TAC descumprido',proc:'IC-000193/2023-PRT18',data:'06/02/2023',cnpj:'90.123.456/0001-78',email:'rh@autopecas-co.com.br',tel:'(62) 3224-5500',end:'Av. Anhanguera, 8500 — Goiânia/GO, CEP 74423-115'},
-  {nome:'TechForce Sistemas',setor:'Tecnologia',regiao:'Sudeste',estado:'SP',cidade:'São Paulo',orgao:'PRT2 — São Paulo',func:610,exig:18,cumpr:8,sit:'TAC em cumprimento',proc:'IC-000667/2023-PRT2',data:'29/09/2023',cnpj:'11.222.333/0001-44',email:'rh@techforce.com.br',tel:'(11) 3012-7700',end:'Rua Faria Lima, 2277 — São Paulo/SP, CEP 01452-000'},
-  {nome:'Distribuidora Nordeste S.A.',setor:'Logística',regiao:'Nordeste',estado:'PE',cidade:'Caruaru',orgao:'PRT6 — Pernambuco',func:380,exig:10,cumpr:2,sit:'TAC descumprido',proc:'IC-000228/2023-PRT6',data:'17/01/2023',cnpj:'22.333.444/0001-67',email:'rh@distnordeste.com.br',tel:'(81) 3721-4400',end:'Av. Rio Branco, 900 — Caruaru/PE, CEP 55014-901'},
-  {nome:'Cimento & Cal do Sul',setor:'Indústria',regiao:'Sul',estado:'PR',cidade:'Ponta Grossa',orgao:'PRT9 — Paraná',func:760,exig:23,cumpr:8,sit:'TAC em cumprimento',proc:'IC-000534/2022-PRT9',data:'09/08/2022',cnpj:'44.555.666/0001-89',email:'dp@cimentosul.com.br',tel:'(42) 3220-8800',end:'Rodovia do Cimento, km 4 — Ponta Grossa/PR, CEP 84050-060'},
-  {nome:'Rede Saúde Campinas',setor:'Saúde',regiao:'Sudeste',estado:'SP',cidade:'Campinas',orgao:'PRT15 — Campinas',func:1340,exig:54,cumpr:22,sit:'TAC em cumprimento',proc:'IC-000812/2023-PRT15',data:'14/11/2023',cnpj:'55.666.777/0001-01',email:'rh@redesaudecampinas.com.br',tel:'(19) 3251-6600',end:'Rua Barão de Jaguara, 1780 — Campinas/SP, CEP 13015-160'},
-  {nome:'Shopping Minas Center',setor:'Varejo',regiao:'Sudeste',estado:'MG',cidade:'Belo Horizonte',orgao:'PRT3 — Minas Gerais',func:290,exig:7,cumpr:1,sit:'TAC descumprido',proc:'IC-000367/2023-PRT3',data:'03/05/2023',cnpj:'66.777.888/0001-23',email:'rh@minascenter.com.br',tel:'(31) 3350-7700',end:'Av. Cristiano Machado, 4000 — Belo Horizonte/MG, CEP 31180-002'},
-  {nome:'Embalagens Rápidas S.A.',setor:'Indústria',regiao:'Sul',estado:'SC',cidade:'Joinville',orgao:'PRT12 — Santa Catarina',func:320,exig:8,cumpr:2,sit:'TAC descumprido',proc:'IC-000289/2023-PRT12',data:'22/04/2023',cnpj:'77.888.999/0001-45',email:'rh@embalarapidas.com.br',tel:'(47) 3461-5500',end:'Rua Nove de Março, 4400 — Joinville/SC, CEP 89203-100'},
-];
-
-// Enriquecer com score Gemini e perfis
-const empresas = DB.map((e,i)=>{
-  const deficit = Math.max(0, e.exig - e.cumpr);
-  const score = Math.min(10, Math.round(2 + (deficit/Math.max(e.exig,1))*8));
-  return {
-    ...e, id:`e${i}`, deficit, pdfUrl:null,
-    perfis: PERFIS_POOL[i % PERFIS_POOL.length],
-    oport: {
-      score,
-      nivel: score>=7?'Alta':score>=4?'Média':'Baixa',
-      rec: deficit>0
-        ? `Empresa com déficit de ${deficit} vaga(s) PCD. Oportunidade concreta para inserção imediata de candidatos.`
-        : 'Cota cumprida. Manter relacionamento para futuras reposições.',
-    }
-  };
-});
-
+// ── STATE ─────────────────────────────────────────────────────────────
+let empresas = [];
 let filtered = [];
 let currentPdfEmpresa = null;
 let jobHistory = [];
 let pdfCount = 0;
 let expandedId = null;
 let sortKey = 'score'; let sortDir = -1;
+let pollingTimer = null;
+
+// ── NORMALIZA dados da API para o formato do frontend ─────────────────
+function normalizar(e, i) {
+  const exig   = e.cota_exigida    || 0;
+  const cumpr  = e.cota_cumprida   || 0;
+  const deficit= Math.max(0, exig - cumpr);
+  const oport  = e.oportunidade    || {};
+  const score  = oport.score_oportunidade || 5;
+  return {
+    id:      e.id || `e${i}`,
+    nome:    e.razao_social || e.nome || '—',
+    setor:   e.setor        || 'A identificar',
+    regiao:  e.regiao       || '—',
+    estado:  e.estado       || '—',
+    cidade:  e.cidade       || '—',
+    orgao:   e.orgao        || '—',
+    func:    e.num_funcionarios || 0,
+    exig,
+    cumpr,
+    deficit,
+    sit:     e.situacao     || 'TAC em cumprimento',
+    proc:    e.numero_procedimento || e.proc || '—',
+    data:    e.data_abertura || e.data || '—',
+    cnpj:    e.cnpj         || '—',
+    email:   e.email        || '',
+    tel:     e.telefone     || '',
+    end:     e.endereco     || '',
+    pdfUrl:  e.pdf_url      || null,
+    doc_url: e.doc_url      || '',
+    perfis:  oport.perfis_sugeridos || [],
+    prazo:   e.prazo_cumprimento   || '',
+    responsavel: e.responsavel_nome || '',
+    responsavel_cargo: e.responsavel_cargo || '',
+    advogado: e.advogado    || '',
+    oport: {
+      score,
+      nivel: oport.nivel || (score>=7?'Alta':score>=4?'Média':'Baixa'),
+      rec:   oport.recomendacao || 'Verificar manualmente no portal MPT.',
+    }
+  };
+}
 
 // ── UTILS ─────────────────────────────────────────────────────────────
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
 function hl(t,q){if(!q||!t)return t||'';const i=t.toLowerCase().indexOf(q.toLowerCase());if(i<0)return t;return t.slice(0,i)+'<mark style="background:#fef08a;border-radius:2px;padding:0 1px">'+t.slice(i,i+q.length)+'</mark>'+t.slice(i+q.length);}
 function chipColor(sit){if(!sit)return'chip-gray';if(sit.includes('descumprido'))return'chip-red';if(sit.includes('cumprido')&&!sit.includes('em'))return'chip-green';return'chip-amber';}
 function scoreColor(n){if(n==='Alta')return'#dc2626';if(n==='Média')return'#d97706';return'#16a34a';}
-function deficitClass(d,exig){const r=d/exig;if(r>0.5)return'deficit-high';if(r>0.2)return'deficit-mid';return'deficit-low';}
+function deficitClass(d,exig){if(!exig||exig===0)return'deficit-low';const r=d/exig;if(r>0.5)return'deficit-high';if(r>0.2)return'deficit-mid';return'deficit-low';}
+function fmtNum(n){return (n&&n>0)?n.toLocaleString('pt-BR'):'—';}
 
 function toast(msg){
   const t=document.createElement('div');t.className='toast';
@@ -691,71 +690,123 @@ function setView(v,el){
   if(v==='regioes') renderSources();
 }
 
-// ── AGENT RUN ─────────────────────────────────────────────────────────
-const LOGS = [
-  ['','Inicializando agente TAC·PCD — SoulCode Agente #001'],
-  ['','Conectando ao GCP Cloud Run (us-central1)...'],
-  ['ok','Cloud Run respondeu em 312ms'],
-  ['','Carregando modelo Vertex AI: gemini-1.5-pro'],
-  ['ok','Vertex AI pronto'],
-  ['','→ PRT1 (Rio de Janeiro): GET /servicos/termos-de-ajuste-de-conduta'],
-  ['','  Gemini analisando HTML — filtrando TAC + PCD + 100+ func...'],
-  ['ok','  PRT1: 4 registros TAC PCD identificados'],
-  ['','→ PRT2 (São Paulo): GET /servicos/movimentacao-de-procedimentos'],
-  ['ok','  PRT2: 6 registros TAC PCD identificados'],
-  ['','→ PRT3 (Minas Gerais): GET /servicos/termos-de-ajuste-de-conduta'],
-  ['ok','  PRT3: 3 registros identificados'],
-  ['','→ PRT4 (Rio Grande do Sul): GET /servicos/termos-de-ajuste-de-conduta'],
-  ['ok','  PRT4: 3 registros identificados'],
-  ['','→ PRT6 (Pernambuco): GET /servicos/termos-de-ajuste-de-conduta'],
-  ['ok','  PRT6: 2 registros identificados'],
-  ['','→ PRT9 (Paraná): GET /servicos/termos-de-ajuste-de-conduta'],
-  ['ok','  PRT9: 2 registros identificados'],
-  ['warn','Shopping Minas Center — 290 func: incluído (acima de 100)'],
-  ['','Enriquecendo dados de contato (Gemini)...'],
-  ['ok','Classificação de oportunidade calculada para 20 empresas'],
-  ['','Salvando 20 documentos no Firestore...'],
-  ['ok','Firestore: 20 docs gravados na coleção "empresas"'],
-  ['','Gerando PDF consolidado (ReportLab)...'],
-  ['ok','Upload → gs://tac-pcd-relatorios/relatorios/job_'+Date.now()+'.pdf'],
-  ['ok','✓ Job concluído — 20 empresas | 7 regiões | Firestore + GCS'],
-];
-
-function runAgent(){
-  document.getElementById('btn-run').disabled=true;
-  const con=document.getElementById('console');
-  const body=document.getElementById('console-body');
-  con.classList.add('visible');body.innerHTML='';
-  let i=0;
-  const t=setInterval(()=>{
-    if(i<LOGS.length){
-      const [type,msg]=LOGS[i];
-      const cls=type==='ok'?'line-ok':type==='warn'?'line-warn':type==='err'?'line-err':'';
-      body.innerHTML+=`<div class="${cls}">${type==='ok'?'✓':type==='warn'?'⚠':type==='err'?'✗':'›'} ${msg}</div>`;
-      body.scrollTop=body.scrollHeight;i++;
-      const pct=Math.round((i/LOGS.length)*100);
-      document.getElementById('prog-fill').style.width=pct+'%';
-      document.getElementById('prog-pct').textContent=pct+'%';
-    } else {
-      clearInterval(t);
-      jobDone();
-    }
-  },220);
+// ── AGENT RUN — chama API real ─────────────────────────────────────────
+function logConsole(type, msg) {
+  const body = document.getElementById('console-body');
+  if (!body) return;
+  const cls = type==='ok'?'line-ok':type==='warn'?'line-warn':type==='err'?'line-err':'';
+  const icon= type==='ok'?'✓':type==='warn'?'⚠':type==='err'?'✗':'›';
+  body.innerHTML += `<div class="${cls}">${icon} ${msg}</div>`;
+  body.scrollTop = body.scrollHeight;
 }
 
-function jobDone(){
-  filtered=[...empresas];
-  updateKPIs();
-  aplicarFiltros();
-  renderAnalytics();
-  updateRegionCounts();
-  document.getElementById('btn-run').disabled=false;
-  document.getElementById('btn-relatorio').disabled=false;
-  document.getElementById('nav-count').textContent=empresas.length;
-  jobHistory.unshift({id:'job-'+Date.now(),dt:new Date().toLocaleString('pt-BR'),total:empresas.length,regioes:7});
-  renderJobs();
-  toast(empresas.length+' empresas identificadas e salvas no Firestore');
-  setView('empresas', document.querySelector('.nav-item.active'));
+function setProgress(pct) {
+  const f = document.getElementById('prog-fill');
+  const p = document.getElementById('prog-pct');
+  if (f) f.style.width = pct + '%';
+  if (p) p.textContent = pct + '%';
+}
+
+async function runAgent() {
+  document.getElementById('btn-run').disabled = true;
+  const con  = document.getElementById('console');
+  const body = document.getElementById('console-body');
+  con.classList.add('visible');
+  body.innerHTML = '';
+  setProgress(0);
+
+  logConsole('', 'Iniciando agente TAC·PCD — SoulCode #001');
+  logConsole('', `Conectando ao backend: ${API_URL}`);
+
+  try {
+    // 1. Dispara o job no backend
+    const resp = await fetch(`${API_URL}/api/scraper/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paginas: 2,
+        orgao: document.getElementById('fil-orgao')?.value || null,
+      }),
+    });
+
+    if (!resp.ok) throw new Error(`Erro ao iniciar job: ${resp.status}`);
+    const job = await resp.json();
+    logConsole('ok', `Job criado: ${job.job_id}`);
+    logConsole('', 'Playwright abrindo portais MPT...');
+
+    // 2. Polling do status
+    if (pollingTimer) clearInterval(pollingTimer);
+    pollingTimer = setInterval(async () => {
+      try {
+        const sr = await fetch(`${API_URL}/api/scraper/status/${job.job_id}`);
+        const status = await sr.json();
+
+        setProgress(status.progresso || 0);
+
+        // Mostra logs novos do backend
+        const logs = status.log || [];
+        if (logs.length > 0) {
+          body.innerHTML = '';
+          logs.forEach(l => {
+            const type = l.includes('✓') || l.includes('OK') ? 'ok'
+                       : l.includes('⚠') || l.includes('Erro') ? 'warn' : '';
+            logConsole(type, l);
+          });
+        }
+
+        if (status.status === 'done') {
+          clearInterval(pollingTimer);
+          await carregarEmpresas();
+          const total = status.resultado?.total || 0;
+          logConsole('ok', `✓ Job concluído — ${total} empresa(s) encontrada(s)`);
+          setProgress(100);
+          document.getElementById('btn-run').disabled = false;
+          document.getElementById('btn-relatorio').disabled = false;
+          toast(total > 0
+            ? `${total} empresa(s) com TAC PCD carregadas do Firestore`
+            : 'Nenhum TAC PCD encontrado nos portais MPT desta vez'
+          );
+        }
+
+        if (status.status === 'error') {
+          clearInterval(pollingTimer);
+          logConsole('err', `Erro: ${status.resultado?.erro || 'desconhecido'}`);
+          document.getElementById('btn-run').disabled = false;
+        }
+
+      } catch (e) {
+        logConsole('warn', `Polling: ${e.message}`);
+      }
+    }, 5000); // verifica a cada 5s
+
+  } catch (err) {
+    logConsole('err', err.message);
+    document.getElementById('btn-run').disabled = false;
+  }
+}
+
+// ── CARREGA EMPRESAS DO FIRESTORE via API ─────────────────────────────
+async function carregarEmpresas() {
+  try {
+    const r = await fetch(`${API_URL}/api/empresas/?limite=500`);
+    const data = await r.json();
+    empresas = (data || []).map(normalizar);
+    filtered = [...empresas];
+    updateKPIs();
+    aplicarFiltros();
+    renderAnalytics();
+    updateRegionCounts();
+    document.getElementById('nav-count').textContent = empresas.length;
+    jobHistory.unshift({
+      id: 'job-' + Date.now(),
+      dt: new Date().toLocaleString('pt-BR'),
+      total: empresas.length,
+      regioes: 7,
+    });
+    renderJobs();
+  } catch (e) {
+    toast('Erro ao carregar empresas: ' + e.message);
+  }
 }
 
 function updateKPIs(){
@@ -778,6 +829,20 @@ function updateRegionCounts(){
   });
 }
 
+// ── MAPA DE URLs DOS ÓRGÃOS MPT ──────────────────────────────────────
+const ORGAO_URLS = {
+  'PRT1 — Rio de Janeiro':    'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT2 — São Paulo':         'https://www.prt2.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT3 — Minas Gerais':      'https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT4 — Rio Grande do Sul': 'https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT6 — Pernambuco':        'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT9 — Paraná':            'https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT12 — Santa Catarina':   'https://www.prt12.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT15 — Campinas':         'https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+  'PRT18 — Goiás':            'https://www.prt18.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
+};
+function orgaoUrl(orgao){ return ORGAO_URLS[orgao] || 'https://www.mpt.mp.br'; }
+
 // ── FILTERS ──────────────────────────────────────────────────────────
 function aplicarFiltros(){
   if(!empresas.length) return;
@@ -790,7 +855,7 @@ function aplicarFiltros(){
   sortKey=ord;
 
   filtered=empresas.filter(e=>{
-    if(e.func<100) return false; // sempre 100+
+    if(e.func > 0 && e.func < 100) return false; // só filtra se tiver dado real
     if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
     if(reg&&e.regiao!==reg)return false;
     if(org&&e.orgao!==org)return false;
@@ -863,7 +928,7 @@ function renderTable(q=''){
       </td>
       <td><span class="chip chip-gray" style="font-size:11px">${e.setor}</span></td>
       <td><span class="chip ${chipColor(e.sit)}" style="font-size:11px">${e.sit}</span></td>
-      <td class="num-col">${e.func.toLocaleString('pt-BR')}</td>
+      <td class="num-col">${fmtNum(e.func)}</td>
       <td>
         <div class="score-cell">
           <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${sc}"></div></div>
@@ -926,18 +991,24 @@ function expandedRow(e){
           <div class="exp-field"><div class="exp-label">Procedimento</div><div class="exp-value mono">${e.proc}</div></div>
           <div class="exp-field"><div class="exp-label">Data de abertura</div><div class="exp-value">${e.data}</div></div>
           <div class="exp-field"><div class="exp-label">Órgão</div><div class="exp-value">${e.orgao}</div></div>
+          ${e.prazo?`<div class="exp-field"><div class="exp-label">Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber)">${e.prazo}</div></div>`:''}
+          ${e.responsavel?`<div class="exp-field"><div class="exp-label">Responsável pela empresa</div><div class="exp-value">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</div></div>`:''}
+          ${e.advogado?`<div class="exp-field"><div class="exp-label">Advogado</div><div class="exp-value">${e.advogado}</div></div>`:''}
           <div class="exp-section-title" style="margin-top:14px">Cota PCD</div>
           <div class="cota-boxes">
-            <div class="cota-box"><div class="val">${e.func.toLocaleString('pt-BR')}</div><div class="lbl">Funcionários</div></div>
-            <div class="cota-box"><div class="val">${e.exig}</div><div class="lbl">Exigidos</div></div>
-            <div class="cota-box ${e.deficit>0?'alert':''}"><div class="val">${e.deficit}</div><div class="lbl">Déficit</div></div>
+            <div class="cota-box"><div class="val">${fmtNum(e.func)}</div><div class="lbl">Funcionários</div></div>
+            <div class="cota-box"><div class="val">${fmtNum(e.exig)}</div><div class="lbl">Exigidos</div></div>
+            <div class="cota-box ${e.deficit>0?'alert':''}"><div class="val">${fmtNum(e.deficit)}</div><div class="lbl">Déficit</div></div>
           </div>
         </div>
         <div>
           <div class="exp-section-title">Contato</div>
-          <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${e.end}</div></div>
-          <div class="exp-field"><div class="exp-label">E-mail</div><div class="exp-value link">${e.email}</div></div>
-          <div class="exp-field"><div class="exp-label">Telefone</div><div class="exp-value">${e.tel}</div></div>
+          <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${e.end||'—'}</div></div>
+          <div class="exp-field"><div class="exp-label">E-mail</div><div class="exp-value link">${e.email||'—'}</div></div>
+          <div class="exp-field"><div class="exp-label">Telefone</div><div class="exp-value">${e.tel||'—'}</div></div>
+          ${e.responsavel?`<div class="exp-field"><div class="exp-label">Responsável</div><div class="exp-value" style="font-weight:500">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</div></div>`:''}
+          ${e.advogado?`<div class="exp-field"><div class="exp-label">Advogado</div><div class="exp-value">${e.advogado}</div></div>`:''}
+          ${e.prazo?`<div class="exp-field"><div class="exp-label" style="color:var(--amber)">⏱ Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber);font-weight:500">${e.prazo}</div></div>`:''}
         </div>
         <div>
           <div class="exp-section-title">Análise Gemini</div>
@@ -959,10 +1030,14 @@ function expandedRow(e){
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Copiar contato
           </button>
-          <a href="${e.proc?'https://'+e.orgao.split('—')[0].trim().toLowerCase().replace(/prt/,'www.prt').replace(' ','')+'mpt.mp.br/servicos/termos-de-ajuste-de-conduta':'#'}" target="_blank" class="btn btn-ghost">
+          <a href="${orgaoUrl(e.orgao)}" target="_blank" class="btn btn-ghost">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             Ver no portal MPT
           </a>
+          ${e.doc_url?`<a href="${e.doc_url}" target="_blank" class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Abrir documento TAC
+          </a>`:''}
         </div>
       </div>
     </div>
@@ -1010,24 +1085,23 @@ function abrirPDF(id){
         <div class="pdf-field"><label>Data de abertura</label><span>${e.data}</span></div>
         <div class="pdf-field"><label>Órgão MPT</label><span>${e.orgao}</span></div>
         <div class="pdf-field"><label>Região</label><span>${e.regiao}</span></div>
+        ${e.prazo?`<div class="pdf-field" style="grid-column:1/-1"><label>⏱ Prazo para cumprimento</label><span style="color:#d97706;font-weight:600">${e.prazo}</span></div>`:''}
       </div>
     </div>
 
     <div class="pdf-section">
       <div class="pdf-sec-title">Infração — Lei 8.213/91, art. 93</div>
       <div class="pdf-infraction">
-        Empresa com <strong>${e.func.toLocaleString('pt-BR')} funcionários</strong> deveria manter <strong>${e.exig} PCD(s)</strong> em seu quadro funcional conforme a cota legal.
-        Foram identificados apenas <strong>${e.cumpr}</strong>, configurando déficit de <strong>${e.deficit} vaga(s)</strong>.
-        TAC firmado para adequação progressiva da cota de inclusão.
+        ${e.motivo || `Empresa com <strong>${e.func.toLocaleString('pt-BR')} funcionários</strong> deveria manter <strong>${e.exig} PCD(s)</strong> em seu quadro funcional conforme a cota legal. Foram identificados apenas <strong>${e.cumpr}</strong>, configurando déficit de <strong>${e.deficit} vaga(s)</strong>.`}
       </div>
     </div>
 
     <div class="pdf-section">
       <div class="pdf-sec-title">Cota PCD — Lei de cotas</div>
       <div class="pdf-cota">
-        <div class="pdf-cota-box"><div class="pv">${e.func.toLocaleString('pt-BR')}</div><div class="pl">Funcionários</div></div>
-        <div class="pdf-cota-box"><div class="pv">${e.exig}</div><div class="pl">Cota exigida</div></div>
-        <div class="pdf-cota-box ${e.deficit>0?'alert':''}"><div class="pv" style="${e.deficit>0?'color:var(--red)':''}">${e.deficit}</div><div class="pl">Déficit atual</div></div>
+        <div class="pdf-cota-box"><div class="pv">${fmtNum(e.func)}</div><div class="pl">Funcionários</div></div>
+        <div class="pdf-cota-box"><div class="pv">${fmtNum(e.exig)}</div><div class="pl">Cota exigida</div></div>
+        <div class="pdf-cota-box ${e.deficit>0?'alert':''}"><div class="pv" style="${e.deficit>0?'color:var(--red)':''}">${fmtNum(e.deficit)}</div><div class="pl">Déficit atual</div></div>
       </div>
     </div>
 
@@ -1035,8 +1109,10 @@ function abrirPDF(id){
       <div class="pdf-sec-title">Dados de contato</div>
       <div class="pdf-grid">
         <div class="pdf-field" style="grid-column:1/-1"><label>Endereço</label><span>${e.end}</span></div>
-        <div class="pdf-field"><label>E-mail</label><span style="color:var(--soul-1)">${e.email}</span></div>
-        <div class="pdf-field"><label>Telefone</label><span>${e.tel}</span></div>
+        <div class="pdf-field"><label>E-mail</label><span style="color:var(--soul-1)">${e.email||'—'}</span></div>
+        <div class="pdf-field"><label>Telefone</label><span>${e.tel||'—'}</span></div>
+        ${e.responsavel?`<div class="pdf-field"><label>Responsável</label><span style="font-weight:600">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</span></div>`:''}
+        ${e.advogado?`<div class="pdf-field"><label>Advogado</label><span>${e.advogado}</span></div>`:''}
       </div>
     </div>
 
@@ -1281,6 +1357,8 @@ function filtrarRegiao(reg,el){
 document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
 document.getElementById('result-count').textContent='';
 renderSources();
+// Carrega empresas já existentes no Firestore ao abrir a página
+carregarEmpresas();
 </script>
 </body>
 </html>

@@ -86,6 +86,38 @@ def _classificar_situacao_local(texto: str) -> str:
     return "TAC em cumprimento"
 
 
+def _eh_documento_tac_pcd(texto: str) -> bool:
+    """
+    Pré-filtro em Python para evitar chamar o Gemini em documentos
+    que não tenham evidências mínimas de TAC relacionado à cota PCD.
+    """
+    if not texto:
+        return False
+
+    texto = texto.lower()
+
+    padroes = [
+        r"lei\s*n?[ºo]?\s*8\.?213\/?91",
+        r"art\.?\s*93",
+        r"pessoa[s]?\s+com\s+defici[eê]ncia",
+        r"\bpcd\b",
+        r"reabilitad[oa]s?",
+        r"cota[s]?",
+        r"reserva\s+legal",
+        r"termo\s+de\s+ajuste\s+de\s+conduta",
+        r"\btac\b",
+        r"a[cç][aã]o\s+civil\s+p[uú]blica",
+        r"\bacp\b",
+    ]
+
+    encontrados = sum(
+        1 for padrao in padroes
+        if re.search(padrao, texto)
+    )
+
+    return encontrados >= 3
+
+
 async def _raspar_todas_paginas(page, fonte: dict, max_paginas: int, log: Callable) -> list[dict]:
     """Raspa TODAS as páginas sem filtro de data ou tamanho."""
     registros = []
@@ -244,6 +276,10 @@ async def raspar_tacs_pcd(
                             _log(f"  PDF nao baixado: {e}")
 
                     if not texto_pdf:
+                        continue
+
+                    if not _eh_documento_tac_pcd(texto_pdf):
+                        _log("  Ignorado pelo filtro regex: sem evidência mínima de TAC PCD")
                         continue
 
                     # Gemini analisa — retorna vazio se não for PCD

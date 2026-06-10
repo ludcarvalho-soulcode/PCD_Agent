@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import scraper, empresas, relatorios, jobs, diagnostico
+from routers import scraper, empresas, relatorios, jobs, cidades, diagnostico
 
 app = FastAPI(
     title="TAC PCD Agent API",
@@ -16,11 +16,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(scraper.router,     prefix="/api/scraper",    tags=["Scraper"])
-app.include_router(empresas.router,    prefix="/api/empresas",   tags=["Empresas"])
-app.include_router(relatorios.router,  prefix="/api/relatorios", tags=["Relatórios"])
-app.include_router(jobs.router,        prefix="/api/jobs",       tags=["Jobs"])
-app.include_router(diagnostico.router, prefix="/api/diagnostico",tags=["Diagnóstico"])
+app.include_router(scraper.router,     prefix="/api/scraper",     tags=["Scraper"])
+app.include_router(empresas.router,    prefix="/api/empresas",    tags=["Empresas"])
+app.include_router(relatorios.router,  prefix="/api/relatorios",  tags=["Relatórios"])
+app.include_router(jobs.router,        prefix="/api/jobs",        tags=["Jobs"])
+app.include_router(cidades.router,     prefix="/api",             tags=["Cidades"])
+app.include_router(diagnostico.router, prefix="/api/diagnostico", tags=["Diagnóstico"])
 
 @app.get("/health")
 def health():

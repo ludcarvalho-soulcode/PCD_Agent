@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ambientes virtuais
+venv/
+.venv/
+
+# Variáveis de ambiente
+.env
+
+# Node / Frontend
+node_modules/
+.next/
+dist/
+build/
+
+# Sistema
+.DS_Store
+Thumbs.db

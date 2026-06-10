@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --ink:       #0a0a0f;
@@ -113,7 +114,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
 .search-box input::placeholder{color:var(--muted)}
 
 select.filter-sel{border:1px solid var(--line);background:var(--white);border-radius:var(--r);padding:0 12px;height:38px;font-size:12px;color:var(--ink3);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;transition:border-color .15s}
-select.filter-sel:focus{border-color:var(--soul-1);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+/*.selected-filter{border: 2px solid #3b82f6 !important;box-shadow: 0 0 8px rgba(59,130,246,.3);background: #f0f7ff;}*/
+select.filter-sel:focus{border-color:var(--soul-1); box-shadow: 0 0 0 3px rgba(59,130,246,.25);}
 
 .btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif}
 .btn svg{width:15px;height:15px}
@@ -326,7 +328,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
     </div>
     <div class="agent-status" style="margin-top:6px">
       <div class="status-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa"></div>
-      Vertex AI — Gemini 1.5 Pro
+      Vertex AI — Gemini
     </div>
   </div>
 </aside>
@@ -337,7 +339,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
     <div class="topbar-title" id="page-title">Empresas com TAC PCD</div>
     <div class="topbar-actions">
       <div class="topbar-urls" id="urls-label">
-        prt1·prt2·prt3·prt4·prt6·prt9·prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta
+        24 PRTs · MPT · termos-de-ajuste-de-conduta
       </div>
       <button class="btn btn-primary" id="btn-run" onclick="runAgent()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -367,9 +369,9 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         <div class="kpi-delta bad" id="kpi-deficit-d">vagas abertas</div>
       </div>
       <div class="kpi">
-        <div class="kpi-val" id="kpi-regioes" style="color:var(--soul-1)">7</div>
-        <div class="kpi-lbl">Regiões cobertas</div>
-        <div class="kpi-delta up">PRT 1·2·3·4·6·9·15</div>
+        <div class="kpi-val" id="kpi-regioes" style="color:var(--soul-1)">24</div>
+        <div class="kpi-lbl">PRTs cobertas</div>
+        <div class="kpi-delta up">PRT 1·2·3·4·5·6·7·8·9·10...</div>
       </div>
       <div class="kpi">
         <div class="kpi-val" id="kpi-pdfs" style="color:var(--green)">0</div>
@@ -399,22 +401,16 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" id="search" placeholder="Buscar empresa, setor, cidade…" oninput="aplicarFiltros()">
           </div>
-          <select class="filter-sel" id="fil-regiao" onchange="aplicarFiltros()">
+          <select class="filter-sel" id="fil-regiao" onchange="atualizarPRTs(); aplicarFiltros()">
             <option value="">Todas as regiões</option>
             <option value="Sudeste">Sudeste</option>
             <option value="Sul">Sul</option>
+            <option value="Norte">Norte</option>
             <option value="Nordeste">Nordeste</option>
             <option value="Centro-Oeste">Centro-Oeste</option>
           </select>
           <select class="filter-sel" id="fil-orgao" onchange="aplicarFiltros()">
             <option value="">Todos os órgãos</option>
-            <option>PRT1 — Rio de Janeiro</option>
-            <option>PRT2 — São Paulo</option>
-            <option>PRT3 — Minas Gerais</option>
-            <option>PRT4 — Rio Grande do Sul</option>
-            <option>PRT6 — Pernambuco</option>
-            <option>PRT9 — Paraná</option>
-            <option>PRT15 — Campinas</option>
           </select>
           <select class="filter-sel" id="fil-sit" onchange="aplicarFiltros()">
             <option value="">Situação</option>
@@ -429,6 +425,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
             <option>Tecnologia</option><option>Serviços</option><option>Construção Civil</option><option>Transporte</option>
           </select>
           <select class="filter-sel" id="fil-ord" onchange="aplicarFiltros()">
+            <option value="">Ordenar por</option>
             <option value="score">Score ↓</option>
             <option value="deficit">Déficit ↓</option>
             <option value="func">Funcionários ↓</option>
@@ -439,13 +436,29 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
           <div class="filter-active-row" id="active-filters"></div>
           <div style="margin-left:auto;display:flex;gap:8px">
             <button class="btn btn-ghost" onclick="limparFiltros()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              Limpar
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Limpar
             </button>
             <button class="btn btn-ghost" id="btn-relatorio" onclick="gerarRelatorio()" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Relatório PDF
-            </button>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Relatório PDF
+    </button>
+
+    <button class="btn btn-ghost" id="btn-export-csv" onclick="exportarCSV()" disabled>
+      CSV
+    </button>
+
+    <button class="btn btn-ghost" id="btn-export-xlsx" onclick="exportarExcel()" disabled>
+      Excel
+    </button>
           </div>
         </div>
       </div>
@@ -457,9 +470,9 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
         </div>
         <div id="table-container">
           <div class="empty-state">
-            <div class="empty-icon">🏭</div>
+            <div class="empty-icon">🔍</div>
             <div class="empty-title">Nenhum dado ainda</div>
-            <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os 7 portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
+            <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
           </div>
         </div>
       </div>
@@ -597,16 +610,79 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
 </div>
 
 <script>
+
+const PRTS_POR_REGIAO = {
+  'Sudeste': [
+    'PRT1 — Rio de Janeiro',
+    'PRT2 — São Paulo',
+    'PRT3 — Minas Gerais',
+    'PRT15 — Campinas',
+    'PRT17 — Espírito Santo'
+  ],
+  'Sul': [
+    'PRT4 — Rio Grande do Sul',
+    'PRT9 — Paraná',
+    'PRT12 — Santa Catarina'
+  ],
+  'Nordeste': [
+    'PRT5 — Bahia',
+    'PRT6 — Pernambuco',
+    'PRT7 — Ceará',
+    'PRT13 — Paraíba',
+    'PRT16 — Maranhão',
+    'PRT19 — Alagoas',
+    'PRT20 — Sergipe',
+    'PRT21 — Rio Grande do Norte',
+    'PRT22 — Piauí'
+  ],
+  'Centro-Oeste': [
+    'PRT10 — Distrito Federal e Tocantins',
+    'PRT18 — Goiás',
+    'PRT23 — Mato Grosso',
+    'PRT24 — Mato Grosso do Sul'
+  ],
+  'Norte': [
+    'PRT8 — Pará e Amapá',
+    'PRT11 — Amazonas e Roraima',
+    'PRT14 — Rondônia e Acre'
+  ]
+};
+
+const TODAS_PRTS = Object.values(PRTS_POR_REGIAO).flat();
+
+function atualizarPRTs() {
+  const regiao = document.getElementById('fil-regiao').value;
+  const selOrgao = document.getElementById('fil-orgao');
+
+  const prts = regiao && PRTS_POR_REGIAO[regiao]
+    ? PRTS_POR_REGIAO[regiao]
+    : TODAS_PRTS;
+
+  selOrgao.innerHTML =
+    '<option value="">Todos os órgãos</option>' +
+    prts.map(prt => `<option value="${prt}">${prt}</option>`).join('');
+}
+// Geovana
+document.addEventListener('DOMContentLoaded', () => {
+  atualizarPRTs();
+});
+
 // ── DATA ──────────────────────────────────────────────────────────────
-const FONTES = [
-  {regiao:'Sudeste', url:'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT1 — Rio de Janeiro'},
-  {regiao:'Sudeste', url:'https://www.prt2.mpt.mp.br/servicos/movimentacao-de-procedimentos', orgao:'PRT2 — São Paulo'},
-  {regiao:'Sudeste', url:'https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT3 — Minas Gerais'},
-  {regiao:'Sudeste', url:'https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT15 — Campinas'},
-  {regiao:'Sul',     url:'https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT4 — Rio Grande do Sul'},
-  {regiao:'Sul',     url:'https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT9 — Paraná'},
-  {regiao:'Nordeste',url:'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT6 — Pernambuco'},
-];
+const FONTES = TODAS_PRTS.map(orgao => {
+  const numero = orgao.match(/PRT(\d+)/)?.[1];
+
+  const regiao = Object.keys(PRTS_POR_REGIAO).find(r =>
+    PRTS_POR_REGIAO[r].includes(orgao)
+  );
+
+  return {
+    regiao,
+    orgao,
+    url: `https://www.prt${numero}.mpt.mp.br/servicos/termos-de-ajuste-de-conduta`
+  };
+});
+
+console.log("FONTES:", FONTES.length);
 
 // ── CONFIGURAÇÃO DA API ───────────────────────────────────────────────
 const API_URL = 'https://tac-pcd-backend-1040741551146.us-central1.run.app';
@@ -707,6 +783,16 @@ function setProgress(pct) {
   if (p) p.textContent = pct + '%';
 }
 
+function habilitarAcoesResultado(hasData = true) {
+  const btnRelatorio = document.getElementById('btn-relatorio');
+  const btnCsv = document.getElementById('btn-export-csv');
+  const btnXlsx = document.getElementById('btn-export-xlsx');
+
+  if (btnRelatorio) btnRelatorio.disabled = !hasData;
+  if (btnCsv) btnCsv.disabled = !hasData;
+  if (btnXlsx) btnXlsx.disabled = !hasData;
+}
+
 async function runAgent() {
   document.getElementById('btn-run').disabled = true;
   const con  = document.getElementById('console');
@@ -719,7 +805,6 @@ async function runAgent() {
   logConsole('', `Conectando ao backend: ${API_URL}`);
 
   try {
-    // 1. Dispara o job no backend
     const resp = await fetch(`${API_URL}/api/scraper/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -734,7 +819,6 @@ async function runAgent() {
     logConsole('ok', `Job criado: ${job.job_id}`);
     logConsole('', 'Playwright abrindo portais MPT...');
 
-    // 2. Polling do status
     if (pollingTimer) clearInterval(pollingTimer);
     pollingTimer = setInterval(async () => {
       try {
@@ -743,7 +827,6 @@ async function runAgent() {
 
         setProgress(status.progresso || 0);
 
-        // Mostra logs novos do backend
         const logs = status.log || [];
         if (logs.length > 0) {
           body.innerHTML = '';
@@ -757,11 +840,14 @@ async function runAgent() {
         if (status.status === 'done') {
           clearInterval(pollingTimer);
           await carregarEmpresas();
+
           const total = status.resultado?.total || 0;
           logConsole('ok', `✓ Job concluído — ${total} empresa(s) encontrada(s)`);
           setProgress(100);
+
           document.getElementById('btn-run').disabled = false;
-          document.getElementById('btn-relatorio').disabled = false;
+          habilitarAcoesResultado(filtered.length > 0);
+
           toast(total > 0
             ? `${total} empresa(s) com TAC PCD carregadas do Firestore`
             : 'Nenhum TAC PCD encontrado nos portais MPT desta vez'
@@ -777,7 +863,7 @@ async function runAgent() {
       } catch (e) {
         logConsole('warn', `Polling: ${e.message}`);
       }
-    }, 5000); // verifica a cada 5s
+    }, 5000);
 
   } catch (err) {
     logConsole('err', err.message);
@@ -785,25 +871,31 @@ async function runAgent() {
   }
 }
 
-// ── CARREGA EMPRESAS DO FIRESTORE via API ─────────────────────────────
 async function carregarEmpresas() {
   try {
     const r = await fetch(`${API_URL}/api/empresas/?limite=500`);
     const data = await r.json();
+
     empresas = (data || []).map(normalizar);
     filtered = [...empresas];
+
     updateKPIs();
     aplicarFiltros();
     renderAnalytics();
     updateRegionCounts();
+
     document.getElementById('nav-count').textContent = empresas.length;
+
     jobHistory.unshift({
       id: 'job-' + Date.now(),
       dt: new Date().toLocaleString('pt-BR'),
       total: empresas.length,
-      regioes: 7,
+      regioes: 24,
     });
+
     renderJobs();
+    habilitarAcoesResultado(filtered.length > 0);
+
   } catch (e) {
     toast('Erro ao carregar empresas: ' + e.message);
   }
@@ -811,7 +903,7 @@ async function carregarEmpresas() {
 
 function updateKPIs(){
   document.getElementById('kpi-total').textContent=empresas.length;
-  document.getElementById('kpi-total-d').textContent='↑ de 7 regiões MPT';
+  document.getElementById('kpi-total-d').textContent='↑ 24 PRTs MPT';
   const alta=empresas.filter(e=>e.oport.score>=7).length;
   document.getElementById('kpi-alta').textContent=alta;
   document.getElementById('kpi-alta-d').textContent=alta+' empresas urgentes';
@@ -830,50 +922,76 @@ function updateRegionCounts(){
 }
 
 // ── MAPA DE URLs DOS ÓRGÃOS MPT ──────────────────────────────────────
-const ORGAO_URLS = {
-  'PRT1 — Rio de Janeiro':    'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT2 — São Paulo':         'https://www.prt2.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT3 — Minas Gerais':      'https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT4 — Rio Grande do Sul': 'https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT6 — Pernambuco':        'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT9 — Paraná':            'https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT12 — Santa Catarina':   'https://www.prt12.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT15 — Campinas':         'https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT18 — Goiás':            'https://www.prt18.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-};
+const ORGAO_URLS = Object.fromEntries(
+  FONTES.map(f => [f.orgao, f.url])
+);
 function orgaoUrl(orgao){ return ORGAO_URLS[orgao] || 'https://www.mpt.mp.br'; }
 
 // ── FILTERS ──────────────────────────────────────────────────────────
-function aplicarFiltros(){
-  if(!empresas.length) return;
-  const q=document.getElementById('search').value.trim().toLowerCase();
-  const reg=document.getElementById('fil-regiao').value;
-  const org=document.getElementById('fil-orgao').value;
-  const sit=document.getElementById('fil-sit').value;
-  const set=document.getElementById('fil-setor').value;
-  const ord=document.getElementById('fil-ord').value;
-  sortKey=ord;
+function aplicarFiltros() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const reg = document.getElementById('fil-regiao').value;
+  const org = document.getElementById('fil-orgao').value;
+  const sit = document.getElementById('fil-sit').value;
+  const set = document.getElementById('fil-setor').value;
+  const ord = document.getElementById('fil-ord').value || 'score';
 
-  filtered=empresas.filter(e=>{
-    if(e.func > 0 && e.func < 100) return false; // só filtra se tiver dado real
-    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
-    if(reg&&e.regiao!==reg)return false;
-    if(org&&e.orgao!==org)return false;
-    if(sit&&e.sit!==sit)return false;
-    if(set&&e.setor!==set)return false;
+  sortKey = ord;
+
+  filtered = empresas.filter(e => {
+    const nome = (e.nome || '').toLowerCase();
+    const setor = (e.setor || '').toLowerCase();
+    const cidade = (e.cidade || '').toLowerCase();
+    const orgao = (e.orgao || '').toLowerCase();
+
+    // Só bloqueia empresas abaixo de 100 quando houver dado real de funcionários.
+    if (e.func > 0 && e.func < 100) return false;
+
+    if (
+      q &&
+      !nome.includes(q) &&
+      !setor.includes(q) &&
+      !cidade.includes(q) &&
+      !orgao.includes(q)
+    ) return false;
+
+    if (reg && e.regiao !== reg) return false;
+    if (org && e.orgao !== org) return false;
+    if (sit && e.sit !== sit) return false;
+    if (set && e.setor !== set) return false;
+
     return true;
   });
 
-  filtered.sort((a,b)=>{
-    if(ord==='score') return b.oport.score-a.oport.score;
-    if(ord==='deficit') return b.deficit-a.deficit;
-    if(ord==='func') return b.func-a.func;
+  filtered.sort((a, b) => {
+    if (ord === 'score') return b.oport.score - a.oport.score;
+    if (ord === 'deficit') return b.deficit - a.deficit;
+    if (ord === 'func') return b.func - a.func;
     return a.nome.localeCompare(b.nome);
   });
 
   renderTable(q);
-  renderActiveFilters(q,reg,org,sit,set);
-  document.getElementById('result-count').textContent=`— ${filtered.length} de ${empresas.length}`;
+  renderActiveFilters(q, reg, org, sit, set);
+
+  document.getElementById('result-count').textContent = `— ${filtered.length} de ${empresas.length}`;
+
+  const hasData = filtered.length > 0;
+
+  const btnExport = document.getElementById('btn-export');
+  const btnCsv = document.getElementById('btn-export-csv');
+  const btnXlsx = document.getElementById('btn-export-xlsx');
+
+  if (btnExport) btnExport.disabled = !hasData;
+  if (btnCsv) btnCsv.disabled = !hasData;
+  if (btnXlsx) btnXlsx.disabled = !hasData;
+
+  document.querySelectorAll('.filter-sel').forEach(select => {
+    if (select.value) {
+      select.classList.add('selected-filter');
+    } else {
+      select.classList.remove('selected-filter');
+    }
+  });
 }
 
 function renderActiveFilters(q,reg,org,sit,set){
@@ -892,13 +1010,22 @@ function renderActiveFilters(q,reg,org,sit,set){
   }
 }
 
-function limparFiltros(){
-  ['search','fil-regiao','fil-orgao','fil-sit','fil-setor'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el.tagName==='INPUT') el.value='';
-    else el.value='';
+function limparFiltros() {
+  ['search','fil-regiao','fil-orgao','fil-sit','fil-setor'].forEach(id => {
+    const el = document.getElementById(id);
+
+    if (!el) return;
+
+    if (el.tagName === 'INPUT') {
+      el.value = '';
+    } else {
+      el.value = '';
+    }
   });
-  document.getElementById('fil-ord').value='score';
+
+  document.getElementById('fil-ord').value = '';
+
+  atualizarPRTs();
   aplicarFiltros();
 }
 
@@ -994,13 +1121,6 @@ function expandedRow(e){
           ${e.prazo?`<div class="exp-field"><div class="exp-label">Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber)">${e.prazo}</div></div>`:''}
           ${e.responsavel?`<div class="exp-field"><div class="exp-label">Responsável pela empresa</div><div class="exp-value">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</div></div>`:''}
           ${e.advogado?`<div class="exp-field"><div class="exp-label">Advogado</div><div class="exp-value">${e.advogado}</div></div>`:''}
-          <div class="exp-section-title" style="margin-top:14px">Cota PCD</div>
-          <div class="cota-boxes">
-            <div class="cota-box"><div class="val">${fmtNum(e.func)}</div><div class="lbl">Funcionários</div></div>
-            <div class="cota-box"><div class="val">${fmtNum(e.exig)}</div><div class="lbl">Exigidos</div></div>
-            <div class="cota-box ${e.deficit>0?'alert':''}"><div class="val">${fmtNum(e.deficit)}</div><div class="lbl">Déficit</div></div>
-          </div>
-        </div>
         <div>
           <div class="exp-section-title">Contato</div>
           <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${e.end||'—'}</div></div>
@@ -1017,7 +1137,7 @@ function expandedRow(e){
           </div>
           <div class="exp-field"><div class="exp-label">Recomendação</div><div class="exp-value" style="color:var(--soul-1);font-size:12px;line-height:1.6">${e.oport.rec}</div></div>
           <div class="exp-field"><div class="exp-label">Perfis sugeridos</div>
-            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:10px">${p}</span>`).join('')}</div>
+            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:11px">${p}</span>`).join('')}</div>
           </div>
           ${e.pdfUrl?`<div class="exp-field" style="margin-top:10px"><div class="exp-label">Cloud Storage</div><div class="exp-value mono" style="font-size:10px;word-break:break-all;color:var(--green)">${e.pdfUrl}</div></div>`:''}
         </div>
@@ -1148,11 +1268,11 @@ function downloadPDF(){
     const content=document.getElementById('pdf-content').innerHTML;
     const w=window.open('','_blank');
     w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans&family=DM+Mono&display=swap" rel="stylesheet">
       <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'DM Sans',sans-serif;padding:32px;font-size:13px;color:#0a0a0f;background:#fafafa}
-        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--green:#16a34a;--green-bg:#f0fdf4}
+        :root{--r:8px;--ink:#0a0a0f;--muted:#7a7a96;--line:#e8e8f0;--line2:#f2f2f8;--white:#fff;--soul-1:#2563eb;--soul-2:#1d4ed8;--soul-light:#eff6ff;--soul-mid:#bfdbfe;--red:#dc2626;--red-bg:#fef2f2;--red-mid:#fecaca;--amber:#d97706;--amber-bg:#fffbeb;--amber-mid:#fde68a;--green:#16a34a;--green-bg:#f0fdf4}
         .pdf-preview{max-width:760px;margin:0 auto;background:#fff;padding:28px;border-radius:12px}
         .pdf-logo-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
         .pdf-logo-badge{background:#2563eb;color:#fff;border-radius:6px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700}
@@ -1247,6 +1367,93 @@ function copiarContato(id){
   const txt=`${e.nome}\nCNPJ: ${e.cnpj}\nEndereço: ${e.end}\nE-mail: ${e.email}\nTelefone: ${e.tel}\nProcedimento: ${e.proc}\nDéficit PCD: ${e.deficit} vaga(s)`;
   navigator.clipboard.writeText(txt).catch(()=>{});
   toast('Contato copiado para a área de transferência');
+}
+
+function exportarCSV() {
+  if (!filtered.length) {
+    toast('Não há dados filtrados para exportar');
+    return;
+  }
+
+  const colunas = [
+    ['Empresa','nome'],
+    ['CNPJ','cnpj'],
+    ['Setor','setor'],
+    ['Região','regiao'],
+    ['Órgão','orgao'],
+    ['Funcionários','func'],
+    ['Cota exigida','exig'],
+    ['Cota cumprida','cumpr'],
+    ['Déficit','deficit'],
+    ['Score','score'],
+    ['Situação','sit'],
+    ['Procedimento','proc'],
+    ['E-mail','email'],
+    ['Telefone','tel'],
+    ['Endereço','end']
+  ];
+
+  const escapeCsv = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+  const linhas = [
+    colunas.map(([titulo]) => escapeCsv(titulo)).join(','),
+    ...filtered.map(e =>
+      colunas.map(([, campo]) =>
+        escapeCsv(campo === 'score' ? e.oport.score : e[campo])
+      ).join(',')
+    )
+  ];
+
+  const blob = new Blob([linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tac_pcd_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+  toast('CSV exportado com sucesso');
+}
+
+function exportarExcel() {
+  if (!filtered.length) {
+    toast('Não há dados filtrados para exportar');
+    return;
+  }
+
+  if (typeof XLSX === 'undefined') {
+    toast('Biblioteca de Excel não carregou');
+    return;
+  }
+
+  const dados = filtered.map(e => ({
+    Empresa: e.nome,
+    CNPJ: e.cnpj,
+    Setor: e.setor,
+    Região: e.regiao,
+    Órgão: e.orgao,
+    Funcionários: e.func,
+    'Cota exigida': e.exig,
+    'Cota cumprida': e.cumpr,
+    Déficit: e.deficit,
+    Score: e.oport.score,
+    Situação: e.sit,
+    Procedimento: e.proc,
+    E_mail: e.email,
+    Telefone: e.tel,
+    Endereço: e.end
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(dados);
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
+  XLSX.writeFile(wb, `tac_pcd_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+  toast('Excel exportado com sucesso');
 }
 
 // ── RELATÓRIO ─────────────────────────────────────────────────────────
@@ -1350,12 +1557,14 @@ function filtrarRegiao(reg,el){
   setView('empresas',document.querySelector('.nav-item'));
   document.querySelector('.nav-item').classList.add('active');
   document.getElementById('fil-regiao').value=reg;
+  atualizarPRTs();
   aplicarFiltros();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
 document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
 document.getElementById('result-count').textContent='';
+atualizarPRTs();
 renderSources();
 // Carrega empresas já existentes no Firestore ao abrir a página
 carregarEmpresas();

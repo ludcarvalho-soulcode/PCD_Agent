@@ -6,6 +6,7 @@ Coleções:
   jobs/           → status de execuções do agente
 """
 import os
+import re
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -15,6 +16,51 @@ from google.cloud import firestore
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "seu-projeto-gcp")
 
 _db: Optional[firestore.AsyncClient] = None
+
+_ENDERECO_UF_RE = re.compile(r"(?P<cidade>[^,/—-]+?)\s*/\s*(?P<uf>[A-Z]{2})\b")
+
+
+def _normalizar_texto(valor: Optional[str]) -> str:
+    return (valor or "").strip().lower()
+
+
+def _doc_estado(data: dict) -> str:
+    estado = data.get("estado") or data.get("uf")
+    if estado:
+        return str(estado).strip().upper()
+
+    endereco = str(data.get("endereco") or "")
+    match = _ENDERECO_UF_RE.search(endereco)
+    if match:
+        return match.group("uf").upper()
+
+    return ""
+
+
+def _doc_cidade(data: dict) -> str:
+    cidade = data.get("cidade")
+    if cidade:
+        return str(cidade).strip()
+
+    endereco = str(data.get("endereco") or "")
+    match = _ENDERECO_UF_RE.search(endereco)
+    if match:
+        return match.group("cidade").strip(" -—,")
+
+    return ""
+
+
+def _texto_busca(data: dict) -> str:
+    partes = [
+        data.get("razao_social"),
+        data.get("cidade"),
+        data.get("estado"),
+        data.get("uf"),
+        data.get("orgao"),
+        data.get("setor"),
+        data.get("endereco"),
+    ]
+    return " ".join(str(parte or "") for parte in partes).lower()
 
 
 def get_db() -> firestore.AsyncClient:
@@ -69,12 +115,16 @@ async def listar_empresas(
     orgao:   Optional[str] = None,
     situacao: Optional[str] = None,
     busca:   Optional[str] = None,
+    estado:  Optional[str] = None,
+    cidade:  Optional[str] = None,
+    regiao:  Optional[str] = None,
+    setor:   Optional[str] = None,
     limite:  int = 100,
 ) -> list[dict]:
     db = get_db()
     query = db.collection("empresas").order_by(
         "oportunidade.score_oportunidade", direction=firestore.Query.DESCENDING
-    ).limit(limite)
+    )
 
     if orgao:
         query = query.where("orgao", "==", orgao)
@@ -84,11 +134,19 @@ async def listar_empresas(
     docs = []
     async for doc in query.stream():
         data = doc.to_dict()
-        # Filtro de busca por nome (Firestore não suporta LIKE, fazemos client-side)
-        if busca:
-            if busca.lower() not in (data.get("razao_social") or "").lower():
-                continue
+        if busca and _normalizar_texto(busca) not in _texto_busca(data):
+            continue
+        if estado and _doc_estado(data) != estado.strip().upper():
+            continue
+        if cidade and _normalizar_texto(cidade) not in _normalizar_texto(_doc_cidade(data)):
+            continue
+        if regiao and _normalizar_texto(regiao) != _normalizar_texto(data.get("regiao")):
+            continue
+        if setor and _normalizar_texto(setor) != _normalizar_texto(data.get("setor")):
+            continue
         docs.append(data)
+        if len(docs) >= limite:
+            break
 
     return docs
 

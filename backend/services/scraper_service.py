@@ -16,13 +16,30 @@ from services.vertex_service import classificar_oportunidade, extrair_tacs_do_ht
 logger = logging.getLogger(__name__)
 
 FONTES = [
-    {"id":"prt2-sp",  "orgao":"PRT2 — São Paulo",         "regiao":"Sudeste",  "url":"https://www.prt2.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
-    {"id":"prt1-rj",  "orgao":"PRT1 — Rio de Janeiro",    "regiao":"Sudeste",  "url":"https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
-    {"id":"prt3-mg",  "orgao":"PRT3 — Minas Gerais",      "regiao":"Sudeste",  "url":"https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
-    {"id":"prt4-rs",  "orgao":"PRT4 — Rio Grande do Sul", "regiao":"Sul",      "url":"https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
-    {"id":"prt6-pe",  "orgao":"PRT6 — Pernambuco",        "regiao":"Nordeste", "url":"https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
-    {"id":"prt9-pr",  "orgao":"PRT9 — Paraná",            "regiao":"Sul",      "url":"https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
-    {"id":"prt15-sp", "orgao":"PRT15 — Campinas",         "regiao":"Sudeste",  "url":"https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt1-rj", "orgao":"PRT1 — Rio de Janeiro", "regiao":"Sudeste", "url":"https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt2-sp", "orgao":"PRT2 — São Paulo", "regiao":"Sudeste", "url":"https://www.prt2.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt3-mg", "orgao":"PRT3 — Minas Gerais", "regiao":"Sudeste", "url":"https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt4-rs", "orgao":"PRT4 — Rio Grande do Sul", "regiao":"Sul", "url":"https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt5-ba", "orgao":"PRT5 — Bahia", "regiao":"Nordeste", "url":"https://www.prt5.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt6-pe", "orgao":"PRT6 — Pernambuco", "regiao":"Nordeste", "url":"https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt7-ce", "orgao":"PRT7 — Ceará", "regiao":"Nordeste", "url":"https://www.prt7.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt8-pa", "orgao":"PRT8 — Pará e Amapá", "regiao":"Norte", "url":"https://www.prt8.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt9-pr", "orgao":"PRT9 — Paraná", "regiao":"Sul", "url":"https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt10-df-to", "orgao":"PRT10 — Distrito Federal e Tocantins", "regiao":"Centro-Oeste", "url":"https://www.prt10.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt11-am-rr", "orgao":"PRT11 — Amazonas e Roraima", "regiao":"Norte", "url":"https://www.prt11.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt12-sc", "orgao":"PRT12 — Santa Catarina", "regiao":"Sul", "url":"https://www.prt12.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt13-pb", "orgao":"PRT13 — Paraíba", "regiao":"Nordeste", "url":"https://www.prt13.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt14-ro-ac", "orgao":"PRT14 — Rondônia e Acre", "regiao":"Norte", "url":"https://www.prt14.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt15-sp", "orgao":"PRT15 — Campinas", "regiao":"Sudeste", "url":"https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt16-ma", "orgao":"PRT16 — Maranhão", "regiao":"Nordeste", "url":"https://www.prt16.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt17-es", "orgao":"PRT17 — Espírito Santo", "regiao":"Sudeste", "url":"https://www.prt17.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt18-go", "orgao":"PRT18 — Goiás", "regiao":"Centro-Oeste", "url":"https://www.prt18.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt19-al", "orgao":"PRT19 — Alagoas", "regiao":"Nordeste", "url":"https://www.prt19.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt20-se", "orgao":"PRT20 — Sergipe", "regiao":"Nordeste", "url":"https://www.prt20.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt21-rn", "orgao":"PRT21 — Rio Grande do Norte", "regiao":"Nordeste", "url":"https://www.prt21.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt22-pi", "orgao":"PRT22 — Piauí", "regiao":"Nordeste", "url":"https://www.prt22.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt23-mt", "orgao":"PRT23 — Mato Grosso", "regiao":"Centro-Oeste", "url":"https://www.prt23.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
+    {"id":"prt24-ms", "orgao":"PRT24 — Mato Grosso do Sul", "regiao":"Centro-Oeste", "url":"https://www.prt24.mpt.mp.br/servicos/termos-de-ajuste-de-conduta"},
 ]
 
 # Situações de interesse para prospecção

@@ -328,7 +328,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
     </div>
     <div class="agent-status" style="margin-top:6px">
       <div class="status-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa"></div>
-      Vertex AI — Gemini 1.5 Pro
+      Vertex AI — Gemini
     </div>
   </div>
 </aside>
@@ -339,7 +339,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
     <div class="topbar-title" id="page-title">Empresas com TAC PCD</div>
     <div class="topbar-actions">
       <div class="topbar-urls" id="urls-label">
-        prt1·prt2·prt3·prt4·prt6·prt9·prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta
+        24 PRTs · MPT · termos-de-ajuste-de-conduta
       </div>
       <button class="btn btn-primary" id="btn-run" onclick="runAgent()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -411,13 +411,6 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
           </select>
           <select class="filter-sel" id="fil-orgao" onchange="aplicarFiltros()">
             <option value="">Todos os órgãos</option>
-            <option>PRT1 — Rio de Janeiro</option>
-            <option>PRT2 — São Paulo</option>
-            <option>PRT3 — Minas Gerais</option>
-            <option>PRT4 — Rio Grande do Sul</option>
-            <option>PRT6 — Pernambuco</option>
-            <option>PRT9 — Paraná</option>
-            <option>PRT15 — Campinas</option>
           </select>
           <select class="filter-sel" id="fil-sit" onchange="aplicarFiltros()">
             <option value="">Situação</option>
@@ -479,7 +472,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
           <div class="empty-state">
             <div class="empty-icon">🔍</div>
             <div class="empty-title">Nenhum dado ainda</div>
-            <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os 7 portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
+            <div class="empty-sub">Clique em <strong>Executar agente</strong> para raspar os portais do MPT<br>e identificar empresas com TAC PCD via Vertex AI.</div>
           </div>
         </div>
       </div>
@@ -617,7 +610,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
 </div>
 
 <script>
-//Branch Prt Geovana
+
 const PRTS_POR_REGIAO = {
   'Sudeste': [
     'PRT1 — Rio de Janeiro',
@@ -669,16 +662,27 @@ function atualizarPRTs() {
     '<option value="">Todos os órgãos</option>' +
     prts.map(prt => `<option value="${prt}">${prt}</option>`).join('');
 }
+// Geovana
+document.addEventListener('DOMContentLoaded', () => {
+  atualizarPRTs();
+});
+
 // ── DATA ──────────────────────────────────────────────────────────────
-const FONTES = [
-  {regiao:'Sudeste', url:'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT1 — Rio de Janeiro'},
-  {regiao:'Sudeste', url:'https://www.prt2.mpt.mp.br/servicos/movimentacao-de-procedimentos', orgao:'PRT2 — São Paulo'},
-  {regiao:'Sudeste', url:'https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT3 — Minas Gerais'},
-  {regiao:'Sudeste', url:'https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT15 — Campinas'},
-  {regiao:'Sul',     url:'https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT4 — Rio Grande do Sul'},
-  {regiao:'Sul',     url:'https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT9 — Paraná'},
-  {regiao:'Nordeste',url:'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta', orgao:'PRT6 — Pernambuco'},
-];
+const FONTES = TODAS_PRTS.map(orgao => {
+  const numero = orgao.match(/PRT(\d+)/)?.[1];
+
+  const regiao = Object.keys(PRTS_POR_REGIAO).find(r =>
+    PRTS_POR_REGIAO[r].includes(orgao)
+  );
+
+  return {
+    regiao,
+    orgao,
+    url: `https://www.prt${numero}.mpt.mp.br/servicos/termos-de-ajuste-de-conduta`
+  };
+});
+
+console.log("FONTES:", FONTES.length);
 
 // ── CONFIGURAÇÃO DA API ───────────────────────────────────────────────
 const API_URL = 'https://tac-pcd-backend-1040741551146.us-central1.run.app';
@@ -886,7 +890,7 @@ async function carregarEmpresas() {
       id: 'job-' + Date.now(),
       dt: new Date().toLocaleString('pt-BR'),
       total: empresas.length,
-      regioes: 7,
+      regioes: 24,
     });
 
     renderJobs();
@@ -899,7 +903,7 @@ async function carregarEmpresas() {
 
 function updateKPIs(){
   document.getElementById('kpi-total').textContent=empresas.length;
-  document.getElementById('kpi-total-d').textContent='↑ de 7 regiões MPT';
+  document.getElementById('kpi-total-d').textContent='↑ 24 PRTs MPT';
   const alta=empresas.filter(e=>e.oport.score>=7).length;
   document.getElementById('kpi-alta').textContent=alta;
   document.getElementById('kpi-alta-d').textContent=alta+' empresas urgentes';
@@ -918,23 +922,13 @@ function updateRegionCounts(){
 }
 
 // ── MAPA DE URLs DOS ÓRGÃOS MPT ──────────────────────────────────────
-const ORGAO_URLS = {
-  'PRT1 — Rio de Janeiro':    'https://www.prt1.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT2 — São Paulo':         'https://www.prt2.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT3 — Minas Gerais':      'https://www.prt3.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT4 — Rio Grande do Sul': 'https://www.prt4.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT6 — Pernambuco':        'https://www.prt6.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT9 — Paraná':            'https://www.prt9.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT12 — Santa Catarina':   'https://www.prt12.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT15 — Campinas':         'https://www.prt15.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-  'PRT18 — Goiás':            'https://www.prt18.mpt.mp.br/servicos/termos-de-ajuste-de-conduta',
-};
+const ORGAO_URLS = Object.fromEntries(
+  FONTES.map(f => [f.orgao, f.url])
+);
 function orgaoUrl(orgao){ return ORGAO_URLS[orgao] || 'https://www.mpt.mp.br'; }
 
 // ── FILTERS ──────────────────────────────────────────────────────────
 function aplicarFiltros() {
-  if (!empresas.length) return;
-
   const q = document.getElementById('search').value.trim().toLowerCase();
   const reg = document.getElementById('fil-regiao').value;
   const org = document.getElementById('fil-orgao').value;
@@ -945,14 +939,20 @@ function aplicarFiltros() {
   sortKey = ord;
 
   filtered = empresas.filter(e => {
-    if (e.func < 100) return false;
+    const nome = (e.nome || '').toLowerCase();
+    const setor = (e.setor || '').toLowerCase();
+    const cidade = (e.cidade || '').toLowerCase();
+    const orgao = (e.orgao || '').toLowerCase();
+
+    // Só bloqueia empresas abaixo de 100 quando houver dado real de funcionários.
+    if (e.func > 0 && e.func < 100) return false;
 
     if (
       q &&
-      !e.nome.toLowerCase().includes(q) &&
-      !e.setor.toLowerCase().includes(q) &&
-      !e.cidade.toLowerCase().includes(q) &&
-      !e.orgao.toLowerCase().includes(q)
+      !nome.includes(q) &&
+      !setor.includes(q) &&
+      !cidade.includes(q) &&
+      !orgao.includes(q)
     ) return false;
 
     if (reg && e.regiao !== reg) return false;
@@ -960,16 +960,6 @@ function aplicarFiltros() {
     if (sit && e.sit !== sit) return false;
     if (set && e.setor !== set) return false;
 
-<<<<<<< HEAD
-=======
-  filtered=empresas.filter(e=>{
-    if(e.func > 0 && e.func < 100) return false; // só filtra se tiver dado real
-    if(q&&!e.nome.toLowerCase().includes(q)&&!e.setor.toLowerCase().includes(q)&&!e.cidade.toLowerCase().includes(q))return false;
-    if(reg&&e.regiao!==reg)return false;
-    if(org&&e.orgao!==org)return false;
-    if(sit&&e.sit!==sit)return false;
-    if(set&&e.setor!==set)return false;
->>>>>>> 84c248e8454add2dff280c0f9e951dd2d06f790d
     return true;
   });
 
@@ -1128,19 +1118,9 @@ function expandedRow(e){
           <div class="exp-field"><div class="exp-label">Procedimento</div><div class="exp-value mono">${e.proc}</div></div>
           <div class="exp-field"><div class="exp-label">Data de abertura</div><div class="exp-value">${e.data}</div></div>
           <div class="exp-field"><div class="exp-label">Órgão</div><div class="exp-value">${e.orgao}</div></div>
-<<<<<<< HEAD
-=======
           ${e.prazo?`<div class="exp-field"><div class="exp-label">Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber)">${e.prazo}</div></div>`:''}
           ${e.responsavel?`<div class="exp-field"><div class="exp-label">Responsável pela empresa</div><div class="exp-value">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</div></div>`:''}
           ${e.advogado?`<div class="exp-field"><div class="exp-label">Advogado</div><div class="exp-value">${e.advogado}</div></div>`:''}
-          <div class="exp-section-title" style="margin-top:14px">Cota PCD</div>
-          <div class="cota-boxes">
-            <div class="cota-box"><div class="val">${fmtNum(e.func)}</div><div class="lbl">Funcionários</div></div>
-            <div class="cota-box"><div class="val">${fmtNum(e.exig)}</div><div class="lbl">Exigidos</div></div>
-            <div class="cota-box ${e.deficit>0?'alert':''}"><div class="val">${fmtNum(e.deficit)}</div><div class="lbl">Déficit</div></div>
-          </div>
->>>>>>> 84c248e8454add2dff280c0f9e951dd2d06f790d
-        </div>
         <div>
           <div class="exp-section-title">Contato</div>
           <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${e.end||'—'}</div></div>
@@ -1577,12 +1557,14 @@ function filtrarRegiao(reg,el){
   setView('empresas',document.querySelector('.nav-item'));
   document.querySelector('.nav-item').classList.add('active');
   document.getElementById('fil-regiao').value=reg;
+  atualizarPRTs();
   aplicarFiltros();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
 document.getElementById('active-filters').innerHTML='<span style="font-size:12px;color:var(--muted)">100+ funcionários · todos os órgãos</span>';
 document.getElementById('result-count').textContent='';
+atualizarPRTs();
 renderSources();
 // Carrega empresas já existentes no Firestore ao abrir a página
 carregarEmpresas();

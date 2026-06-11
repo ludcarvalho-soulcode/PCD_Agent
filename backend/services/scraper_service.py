@@ -87,36 +87,48 @@ def _classificar_situacao_local(texto: str) -> str:
 
 
 def _eh_documento_tac_pcd(texto: str) -> bool:
-    """
-    Pré-filtro em Python para evitar chamar o Gemini em documentos
-    que não tenham evidências mínimas de TAC relacionado à cota PCD.
-    """
     if not texto:
         return False
 
     texto = texto.lower()
 
-    padroes = [
-        r"lei\s*n?[ºo]?\s*8\.?213\/?91",
+    padroes_tac = [
+        r"termo\s+de\s+ajuste\s+de\s+conduta",
+        r"termo\s+de\s+ajustamento\s+de\s+conduta",
+        r"termo\s+de\s+compromisso\s+de\s+ajustamento\s+de\s+conduta",
+        r"\btac\b",
+    ]
+
+    padroes_pcd = [
         r"art\.?\s*93",
+        r"artigo\s*93",
         r"pessoa[s]?\s+com\s+defici[eê]ncia",
         r"\bpcd\b",
         r"reabilitad[oa]s?",
-        r"cota[s]?",
-        r"reserva\s+legal",
-        r"termo\s+de\s+ajuste\s+de\s+conduta",
-        r"\btac\b",
-        r"a[cç][aã]o\s+civil\s+p[uú]blica",
-        r"\bacp\b",
+        r"cota[s]?\s+(?:legal|pcd|de\s+pcd|para\s+pessoas?\s+com\s+defici[eê]ncia)",
+        r"lei\s+de\s+cotas",
+        r"reserva\s+legal\s+de\s+cargos",
     ]
 
-    encontrados = sum(
-        1 for padrao in padroes
-        if re.search(padrao, texto)
-    )
+    padroes_exclusao = [
+        r"art\.?\s*22\s+da\s+lei\s*n?[ºo]?\s*8\.?213\/?91",
+        r"comunica[cç][aã]o\s+de\s+acidente\s+de\s+trabalho",
+        r"\bcat\b",
+        r"acidente\s+de\s+trabalho",
+        r"menor\s+de\s+18",
+        r"trabalho\s+infantil",
+        r"atividade[s]?\s+insalubre[s]?",
+        r"atividade[s]?\s+perigosa[s]?",
+        r"programa\s+de\s+gerenciamento\s+de\s+riscos",
+        r"\bpgr\b",
+        r"\bnr-\d+",
+    ]
 
-    return encontrados >= 3
+    tem_tac = any(re.search(p, texto) for p in padroes_tac)
+    tem_pcd = any(re.search(p, texto) for p in padroes_pcd)
+    tem_exclusao = any(re.search(p, texto) for p in padroes_exclusao)
 
+    return tem_tac and tem_pcd and not tem_exclusao
 
 async def _raspar_todas_paginas(page, fonte: dict, max_paginas: int, log: Callable) -> list[dict]:
     """Raspa TODAS as páginas sem filtro de data ou tamanho."""
@@ -261,8 +273,17 @@ async def raspar_tacs_pcd(
                 registros = await _raspar_todas_paginas(page, fonte, paginas, _log)
 
                 for reg in registros:
-                    if reg["procedimento"] in vistos:
-                        continue
+                    chave_procedimento = (
+                        reg.get("procedimento")
+                        or reg.get("numero")
+                        or reg.get("doc_url")
+                        )
+
+                    if chave_procedimento in vistos:
+                     _log(f"  Ignorado duplicado: {chave_procedimento}")
+                    continue
+
+                    vistos.add(chave_procedimento)
 
                     # Baixa o PDF
                     texto_pdf = ""
@@ -305,7 +326,6 @@ async def raspar_tacs_pcd(
                         _log(f"  Ignorado ({situacao}): {empresa.get('razao_social','?')}")
                         continue
 
-                    vistos.add(reg["procedimento"])
 
                     # Metadados
                     empresa["orgao"]               = fonte["orgao"]

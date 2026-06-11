@@ -33,8 +33,50 @@ def _parse_json(text: str) -> dict | list:
         return json.loads(match.group(1))
     raise ValueError(f"JSON não encontrado: {text[:200]}")
 
+def _cnpj_valido(cnpj: str) -> bool:
+    cnpj_limpo = re.sub(r"[^\d]", "", cnpj or "")
+    return len(cnpj_limpo) == 14 and cnpj_limpo != "00000000000000"
+
+def _empresa_extraida_valida(empresa: dict) -> bool:
+    if not empresa:
+        return False
+
+    razao = (empresa.get("razao_social") or "").strip()
+    situacao = (empresa.get("situacao") or "").strip()
+
+    if not razao or not situacao:
+        return False
+
+    nomes_invalidos = {
+        "são paulo", "sao paulo", "campinas", "santos", "guarulhos",
+        "osasco", "barueri", "santo andré", "santo andre", "sorocaba",
+        "ministério público do trabalho", "ministerio publico do trabalho",
+        "mpt", "procuradoria regional do trabalho"
+    }
+
+    if razao.lower() in nomes_invalidos:
+        return False
+
+    for campo in ["num_funcionarios", "cota_exigida", "cota_cumprida"]:
+        valor = empresa.get(campo, 0)
+        if not isinstance(valor, int) or valor < 0:
+            return False
+
+    cota_exigida = empresa.get("cota_exigida", 0)
+    cota_cumprida = empresa.get("cota_cumprida", 0)
+
+    if cota_exigida > 0 and cota_cumprida > cota_exigida:
+        return False
+
+    cnpj = empresa.get("cnpj", "")
+    if cnpj and not _cnpj_valido(cnpj):
+        return False
+
+    return True
+
 
 async def extrair_tacs_do_html(conteudo: str, orgao: str = "") -> list[dict]:
+    print("ENTROU NO GEMINI - extrair_tacs_do_html")
     """
     Analisa texto de documento TAC PCD e extrai todos os dados estruturados.
     """
@@ -72,10 +114,22 @@ CAMPOS OBRIGATÓRIOS:
 - setor: setor econômico (Varejo, Indústria, Saúde, Logística, Alimentício, Financeiro, Tecnologia, Serviços, Transporte, Construção Civil)
 
 REGRAS:
-- Se NÃO for TAC sobre cota PCD (Lei 8.213/91), retorne {{"empresas": []}}
-- responsavel_nome é sempre o representante da EMPRESA, nunca o Procurador do MPT
-- prazo_cumprimento: procure exatamente pela frase "Prazo para o cumprimento desta obrigação:" ou similar
-- Para campos não encontrados: use 0 para números, "" para texto
+- Se NÃO for TAC sobre cota PCD (Lei 8.213/91, art. 93, pessoa com deficiência, PCD, reabilitados ou cota legal), retorne {{"empresas": []}}
+- Não invente dados. Extraia somente informações explícitas no documento.
+- Não estime número de funcionários, cota exigida ou cota cumprida.
+- Se não houver evidência documental para números, retorne 0.
+- Se não houver evidência documental para textos, retorne "".
+
+- A razao_social deve ser o nome jurídico real da empresa compromissária, requerida, investigada ou empregadora.
+- Se houver cidade e empresa no documento, escolha sempre a empresa.
+- Não use município, localidade, endereço, comarca, estado ou local de assinatura como razao_social.
+- Nunca use cidade, órgão público, comarca, vara, procuradoria ou unidade do MPT como razão social da empresa.
+- Nunca retorne valores como "Empresa — PETRÓPOLIS", "Empresa — RIO DE JANEIRO" ou qualquer variação semelhante.
+- Priorize nomes que estejam associados a CNPJ, empregadora, empresa, compromissária, requerida ou representante legal.
+- Se não for possível identificar claramente a empresa responsável pelo TAC, retorne {{"empresas": []}}.
+
+- responsavel_nome é sempre o representante da EMPRESA, nunca o Procurador do MPT.
+- prazo_cumprimento: procure exatamente pela frase "Prazo para o cumprimento desta obrigação:" ou similar.
 
 Órgão MPT: {orgao}
 
@@ -101,15 +155,20 @@ Retorne APENAS JSON válido:
   "setor": ""
 }}]}}
 """
-
-    cfg = GenerationConfig(temperature=0.1, max_output_tokens=2048)
+    cfg = GenerationConfig(temperature=0.0, max_output_tokens=2048)
     response = model.generate_content(prompt, generation_config=cfg)
+
     result = _parse_json(response.text)
+
     if isinstance(result, dict):
-        return result.get("empresas", [])
+        empresas = result.get("empresas", [])
+        return [
+            empresa for empresa in empresas
+            if _empresa_extraida_valida(empresa)
+        ]
+
     return []
-
-
+    
 async def enriquecer_empresa(empresa: dict) -> dict:
     """Enriquece dados de contato faltantes usando o Gemini."""
     model = get_model()

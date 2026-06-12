@@ -11,7 +11,14 @@ from typing import Optional, Callable
 from playwright.async_api import async_playwright
 import pdfplumber
 
-from services.vertex_service import classificar_oportunidade, extrair_tacs_do_html, enriquecer_empresa, buscar_dados_cnpj
+# Importamos todas as funções necessárias do vertex_service, incluindo o pré-filtro atualizado e blindado
+from services.vertex_service import (
+    classificar_oportunidade,
+    extrair_tacs_do_html,
+    enriquecer_empresa,
+    buscar_dados_cnpj,
+    _eh_documento_tac_pcd
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +68,7 @@ def _extrair_texto_pdf(pdf_bytes: bytes) -> str:
 
 def _extrair_prazo_local(texto: str) -> str:
     t = texto.lower()
-    m = re.search(r'prazo para o cumprimento desta obriga[çc][aã]o[:\s]+([^\n\.]{5,60})', t)
+    m = re.search(r'prazo para o cumprimento desta obrigação[:\s]+([^\n\.]{5,60})', t)
     if m:
         return m.group(1).strip().title()
     m = re.search(r'no prazo (?:suplementar )?de (\d+)\s*\([\w\s]+\)\s*(anos?|meses?)[^,\n]*(?:a partir d[ae] (\d{2}/\d{2}/\d{4}))?', t)
@@ -85,50 +92,6 @@ def _classificar_situacao_local(texto: str) -> str:
         return "TAC cumprido"
     return "TAC em cumprimento"
 
-
-def _eh_documento_tac_pcd(texto: str) -> bool:
-    if not texto:
-        return False
-
-    texto = texto.lower()
-
-    padroes_tac = [
-        r"termo\s+de\s+ajuste\s+de\s+conduta",
-        r"termo\s+de\s+ajustamento\s+de\s+conduta",
-        r"termo\s+de\s+compromisso\s+de\s+ajustamento\s+de\s+conduta",
-        r"\btac\b",
-    ]
-
-    padroes_pcd = [
-        r"art\.?\s*93",
-        r"artigo\s*93",
-        r"pessoa[s]?\s+com\s+defici[eê]ncia",
-        r"\bpcd\b",
-        r"reabilitad[oa]s?",
-        r"cota[s]?\s+(?:legal|pcd|de\s+pcd|para\s+pessoas?\s+com\s+defici[eê]ncia)",
-        r"lei\s+de\s+cotas",
-        r"reserva\s+legal\s+de\s+cargos",
-    ]
-
-    padroes_exclusao = [
-        r"art\.?\s*22\s+da\s+lei\s*n?[ºo]?\s*8\.?213\/?91",
-        r"comunica[cç][aã]o\s+de\s+acidente\s+de\s+trabalho",
-        r"\bcat\b",
-        r"acidente\s+de\s+trabalho",
-        r"menor\s+de\s+18",
-        r"trabalho\s+infantil",
-        r"atividade[s]?\s+insalubre[s]?",
-        r"atividade[s]?\s+perigosa[s]?",
-        r"programa\s+de\s+gerenciamento\s+de\s+riscos",
-        r"\bpgr\b",
-        r"\bnr-\d+",
-    ]
-
-    tem_tac = any(re.search(p, texto) for p in padroes_tac)
-    tem_pcd = any(re.search(p, texto) for p in padroes_pcd)
-    tem_exclusao = any(re.search(p, texto) for p in padroes_exclusao)
-
-    return tem_tac and tem_pcd and not tem_exclusao
 
 async def _raspar_todas_paginas(page, fonte: dict, max_paginas: int, log: Callable) -> list[dict]:
     """Raspa TODAS as páginas sem filtro de data ou tamanho."""
@@ -277,11 +240,11 @@ async def raspar_tacs_pcd(
                         reg.get("procedimento")
                         or reg.get("numero")
                         or reg.get("doc_url")
-                        )
+                    )
 
                     if chave_procedimento in vistos:
-                     _log(f"  Ignorado duplicado: {chave_procedimento}")
-                    continue
+                        _log(f"  Ignorado duplicado: {chave_procedimento}")
+                        continue
 
                     vistos.add(chave_procedimento)
 
@@ -299,8 +262,9 @@ async def raspar_tacs_pcd(
                     if not texto_pdf:
                         continue
 
+                    # Chamada direta e unificada ao filtro estrito importado do vertex_service
                     if not _eh_documento_tac_pcd(texto_pdf):
-                        _log("  Ignorado pelo filtro regex: sem evidência mínima de TAC PCD")
+                        _log(f"  Ignorado pelo filtro regex: sem evidência de TAC PCD para o procedimento {reg['procedimento']}")
                         continue
 
                     # Gemini analisa — retorna vazio se não for PCD

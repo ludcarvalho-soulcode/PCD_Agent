@@ -11,7 +11,14 @@ from typing import Optional, Callable
 from playwright.async_api import async_playwright
 import pdfplumber
 
-from services.vertex_service import classificar_oportunidade, extrair_tacs_do_html, enriquecer_empresa, buscar_dados_cnpj
+# Importamos todas as funções necessárias do vertex_service, incluindo o pré-filtro atualizado e blindado
+from services.vertex_service import (
+    classificar_oportunidade,
+    extrair_tacs_do_html,
+    enriquecer_empresa,
+    buscar_dados_cnpj,
+    _eh_documento_tac_pcd
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +68,7 @@ def _extrair_texto_pdf(pdf_bytes: bytes) -> str:
 
 def _extrair_prazo_local(texto: str) -> str:
     t = texto.lower()
-    m = re.search(r'prazo para o cumprimento desta obriga[çc][aã]o[:\s]+([^\n\.]{5,60})', t)
+    m = re.search(r'prazo para o cumprimento desta obrigação[:\s]+([^\n\.]{5,60})', t)
     if m:
         return m.group(1).strip().title()
     m = re.search(r'no prazo (?:suplementar )?de (\d+)\s*\([\w\s]+\)\s*(anos?|meses?)[^,\n]*(?:a partir d[ae] (\d{2}/\d{2}/\d{4}))?', t)
@@ -229,8 +236,17 @@ async def raspar_tacs_pcd(
                 registros = await _raspar_todas_paginas(page, fonte, paginas, _log)
 
                 for reg in registros:
-                    if reg["procedimento"] in vistos:
+                    chave_procedimento = (
+                        reg.get("procedimento")
+                        or reg.get("numero")
+                        or reg.get("doc_url")
+                    )
+
+                    if chave_procedimento in vistos:
+                        _log(f"  Ignorado duplicado: {chave_procedimento}")
                         continue
+
+                    vistos.add(chave_procedimento)
 
                     # Baixa o PDF
                     texto_pdf = ""
@@ -244,6 +260,11 @@ async def raspar_tacs_pcd(
                             _log(f"  PDF nao baixado: {e}")
 
                     if not texto_pdf:
+                        continue
+
+                    # Chamada direta e unificada ao filtro estrito importado do vertex_service
+                    if not _eh_documento_tac_pcd(texto_pdf):
+                        _log(f"  Ignorado pelo filtro regex: sem evidência de TAC PCD para o procedimento {reg['procedimento']}")
                         continue
 
                     # Gemini analisa — retorna vazio se não for PCD
@@ -269,7 +290,6 @@ async def raspar_tacs_pcd(
                         _log(f"  Ignorado ({situacao}): {empresa.get('razao_social','?')}")
                         continue
 
-                    vistos.add(reg["procedimento"])
 
                     # Metadados
                     empresa["orgao"]               = fonte["orgao"]

@@ -289,7 +289,7 @@ td.proc-col{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
   .regions-grid{grid-template-columns:1fr 1fr}
 }
 </style>
-<script>window.API_URL='https://tac-pcd-backend-wep4co2rkq-uc.a.run.app';</script><script>window.API_URL='https://tac-pcd-backend-wep4co2rkq-uc.a.run.app';</script></head>
+</head>
 <body>
 
 <!-- SIDEBAR -->
@@ -1297,10 +1297,12 @@ function downloadPDF(){
         .chip-red{background:#fef2f2;color:#dc2626}
         .chip-amber{background:#fffbeb;color:#d97706}
         .chip-green{background:#f0fdf4;color:#16a34a}
-      </style>
-      <script>window.API_URL='https://tac-pcd-backend-wep4co2rkq-uc.a.run.app';</script><script>window.API_URL='https://tac-pcd-backend-wep4co2rkq-uc.a.run.app';</script></head><body><div class="pdf-preview">${content}</div>
-      <script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000)}<\/script>
-    </html>`);
+        </style>
+</head>
+<body><div class="pdf-preview">${content}</div>
+<script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000)}<\/script>
+</html>`);
+      
     w.document.close();
     // mark URL
     e.pdfUrl=`gs://tac-pcd-relatorios/fichas/${e.nome.replace(/\s+/g,'_').slice(0,25)}_${e.id}.pdf`;
@@ -1483,7 +1485,9 @@ function gerarRelatorio(){
         td{padding:7px 10px;border-bottom:1px solid #f2f2f8}
         tr:hover{background:#f8f9ff}
         .footer{margin-top:24px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
-      </style><script>window.API_URL='https://tac-pcd-backend-wep4co2rkq-uc.a.run.app';</script><script>window.API_URL='https://tac-pcd-backend-wep4co2rkq-uc.a.run.app';</script></head><body>
+      </style>
+      </head>
+      <body>
       <h1>Relatório TAC PCD — SoulCode Agente #001</h1>
       <p class="sub">Gerado em ${new Date().toLocaleString('pt-BR')} · ${filtered.length} empresas · 7 regiões MPT · filtro: 100+ funcionários</p>
       <table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Setor</th><th>Região</th><th>Órgão</th><th>Func.</th><th>Exig.</th><th>Déficit</th><th>Score</th><th>Situação</th><th>E-mail</th><th>Telefone</th><th>Procedimento</th></tr></thead>

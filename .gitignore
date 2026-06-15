@@ -18,4 +18,5 @@ build/
 
 # Sistema
 .DS_Store
-Thumbs.db
+Thumbs.dbcredenciais.json
+credenciais.json

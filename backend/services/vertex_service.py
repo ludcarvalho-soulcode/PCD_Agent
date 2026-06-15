@@ -80,6 +80,9 @@ def _empresa_extraida_valida(empresa: dict) -> bool:
 
 
 def _eh_documento_tac_pcd(texto: str) -> bool:
+    if not texto or len(texto) < 50:
+        print(f"DEBUG: Texto muito curto ou vazio: {texto}")
+        return False
     """
     Pré-filtro de alta precisão em Python.
     Utiliza exclusão estrita combinada com um sistema de pontuação por relevância
@@ -207,7 +210,7 @@ def _eh_documento_tac_pcd(texto: str) -> bool:
     texto
    )
 
-    return bool(tem_art93 and tem_pcd)
+    return score >= 4
 
 async def extrair_tacs_do_html(conteudo: str, orgao: str = "") -> list[dict]:
     print("ENTROU NO GEMINI - extrair_tacs_do_html")
@@ -216,7 +219,7 @@ async def extrair_tacs_do_html(conteudo: str, orgao: str = "") -> list[dict]:
     """
     model = get_model()
 
-# 2. Prompt com instrução de Sistema altamente restritiva no início
+    # 2. Prompt com instrução de Sistema altamente restritiva no início
     prompt = f"""SISTEMA: VOCÊ É UM FILTRO DE SEGURANÇA. 
     SE O DOCUMENTO NÃO FOR UM "TERMO DE AJUSTAMENTO DE CONDUTA" (TAC) ESPECÍFICO SOBRE A LEI 8.213/91 (COTA DE PCD), VOCÊ DEVE IGNORAR TODO O TEXTO E RETORNAR APENAS: {{"empresas": []}}.
     
@@ -295,7 +298,15 @@ Retorne APENAS JSON válido:
 }}]}}
 """
     cfg = GenerationConfig(temperature=0.0, max_output_tokens=2048)
-    response = model.generate_content(prompt, generation_config=cfg)
+    
+    # Adição de Debug para verificar o status
+    print(f"DEBUG: Enviando prompt para o Gemini (tamanho: {len(prompt)})...")
+    try:
+        response = model.generate_content(prompt, generation_config=cfg)
+        print("DEBUG: Resposta recebida do Gemini com sucesso!")
+    except Exception as e:
+        print(f"ERRO CRÍTICO NA CHAMADA DO GEMINI: {e}")
+        return []
 
     result = _parse_json(response.text)
 

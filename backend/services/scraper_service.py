@@ -11,8 +11,9 @@ from typing import Optional, Callable
 from playwright.async_api import async_playwright
 import pdfplumber
 
-# Importamos todas as funções necessárias do vertex_service, incluindo o pré-filtro atualizado e blindado
-from services.vertex_service import (
+# CORREÇÃO: Adicionamos 'backend.' no início de cada import 
+# para que o Python encontre os módulos a partir da raiz do projeto.
+from backend.services.vertex_service import (
     classificar_oportunidade,
     extrair_tacs_do_html,
     enriquecer_empresa,

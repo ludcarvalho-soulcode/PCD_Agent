@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import scraper, empresas, relatorios, jobs, cidades, diagnostico
+from backend.routers import scraper, empresas, relatorios, jobs, cidades, diagnostico
 
 app = FastAPI(
     title="TAC PCD Agent API",

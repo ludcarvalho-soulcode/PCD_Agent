@@ -1,8 +1,9 @@
 """Router: /api/empresas"""
 from typing import Optional
 from fastapi import APIRouter, HTTPException
-from services import firestore_service as fs
-from services import storage_service
+# CORREÇÃO: Importação absoluta a partir do pacote 'backend'
+from backend.services import firestore_service as fs
+from backend.services import storage_service
 
 router = APIRouter()
 
@@ -18,17 +19,23 @@ async def listar(
     setor:    Optional[str] = None,
     limite:   int = 100,
 ):
-    return await fs.listar_empresas(orgao=orgao, situacao=situacao,
-                                    busca=busca, estado=estado,
-                                    cidade=cidade, regiao=regiao,
-                                    setor=setor, limite=limite)
+    return await fs.listar_empresas(
+        orgao=orgao, 
+        situacao=situacao,
+        busca=busca, 
+        estado=estado,
+        cidade=cidade, 
+        regiao=regiao,
+        setor=setor, 
+        limite=limite
+    )
 
 
 @router.get("/{empresa_id}")
 async def buscar(empresa_id: str):
     emp = await fs.buscar_empresa(empresa_id)
     if not emp:
-        raise HTTPException(404, "Empresa não encontrada")
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
     return emp
 
 
@@ -36,7 +43,7 @@ async def buscar(empresa_id: str):
 async def gerar_pdf(empresa_id: str):
     emp = await fs.buscar_empresa(empresa_id)
     if not emp:
-        raise HTTPException(404, "Empresa não encontrada")
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
     url = await storage_service.gerar_e_salvar_pdf_empresa(emp)
     await fs.atualizar_pdf_url(empresa_id, url)
     return {"pdf_url": url}

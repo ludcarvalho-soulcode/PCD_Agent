@@ -1,10 +1,8 @@
-"""
-Router de diagnóstico — testa o Playwright em um portal MPT
-e retorna o HTML que ele consegue ver + screenshot base64
-"""
+"""Router de diagnóstico — testa o Playwright em um portal MPT"""
 from fastapi import APIRouter
 from playwright.async_api import async_playwright
-import base64, asyncio
+import asyncio
+from bs4 import BeautifulSoup # Import corrigido para o topo do arquivo
 
 router = APIRouter()
 
@@ -74,7 +72,6 @@ async def testar_portal(url: str = "https://www.prt2.mpt.mp.br/servicos/termos-d
                 resultado["amostra_linhas"] = amostras
 
             # Pega texto resumido da página
-            from bs4 import BeautifulSoup
             html = await page.content()
             soup = BeautifulSoup(html, "lxml")
             for tag in soup(["script", "style", "nav", "header", "footer"]):

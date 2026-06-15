@@ -1,22 +1,38 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-
-# Ambientes virtuais
+# --- Ambientes Virtuais ---
 venv/
-.venv/
+env/
+.env/
+env.bak/
+venv.bak/
 
-# Variáveis de ambiente
+# --- Cache e bytecode Python ---
+__pycache__/
+*.py[cod]
+*.class
+
+# --- IDEs e Editores (VS Code, Pycharm, etc) ---
+.vscode/
+.idea/
+.DS_Store
+.history/
+
+# --- Credenciais e Configurações de Ambiente ---
 .env
+credenciais.json
+*.pem
+*.key
+*.secrets
 
-# Node / Frontend
-node_modules/
-.next/
+# --- Dados do Playwright ---
+.cache/
+ms-playwright/
+
+# --- Docker / Cloud ---
+.docker/
 dist/
 build/
 
 # Sistema
 .DS_Store
-Thumbs.dbcredenciais.json
+Thumbs.db
 credenciais.json

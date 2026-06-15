@@ -11,9 +11,9 @@ from typing import Optional, Callable
 from playwright.async_api import async_playwright
 import pdfplumber
 
-# CORREÇÃO: Adicionamos 'backend.' no início de cada import 
+# CORREÇÃO: Adicionamos '' no início de cada import 
 # para que o Python encontre os módulos a partir da raiz do projeto.
-from backend.services.vertex_service import (
+from services.vertex_service import (
     classificar_oportunidade,
     extrair_tacs_do_html,
     enriquecer_empresa,

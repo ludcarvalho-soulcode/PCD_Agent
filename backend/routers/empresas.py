@@ -2,8 +2,8 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 # CORREÇÃO: Importação absoluta a partir do pacote 'backend'
-from backend.services import firestore_service as fs
-from backend.services import storage_service
+from services import firestore_service as fs
+from services import storage_service
 
 router = APIRouter()
 

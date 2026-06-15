@@ -2,7 +2,7 @@ import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import scraper, empresas, relatorios, jobs, cidades, diagnostico
+from routers import scraper, empresas, relatorios, jobs, cidades, diagnostico
 
 app = FastAPI(
     title="TAC PCD Agent API",
@@ -34,4 +34,4 @@ if __name__ == "__main__":
     # O Google Cloud injeta a porta na variável de ambiente PORT. 
     # Se não existir, usamos a 8080 como padrão.
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=port)
+    uvicorn.run("main:app", host="0.0.0.0", port=port)

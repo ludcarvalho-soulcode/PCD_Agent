@@ -2,8 +2,8 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 # CORREÇÃO: Importação absoluta corrigida para o pacote 'backend'
-from backend.services import firestore_service as fs
-from backend.services import storage_service
+from services import firestore_service as fs
+from services import storage_service
 
 router = APIRouter()
 

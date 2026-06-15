@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from backend.models.schemas import ScraperJobRequest, ScraperJobResponse
-from backend.services import firestore_service as fs
-from backend.services import scraper_service, storage_service
+from models.schemas import ScraperJobRequest, ScraperJobResponse
+from services import firestore_service as fs
+from services import scraper_service, storage_service
 
 router = APIRouter()
 

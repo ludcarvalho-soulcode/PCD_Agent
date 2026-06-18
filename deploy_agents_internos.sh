@@ -151,7 +151,7 @@ step "7/7  Frontend — build & deploy"
 
 # Injeta a URL real do backend no HTML
 info "Injetando API URL no frontend..."
-sed -i "s|</head>|<script>window.API_URL='${BACKEND_URL}';</script></head>|" ./frontend/index.html
+sed -i "s|https://SUA_API_CLOUD_RUN|${BACKEND_URL}|g" ./frontend/index.html
 
 info "docker build frontend..."
 docker build -t "${FRONTEND_IMG}" ./frontend

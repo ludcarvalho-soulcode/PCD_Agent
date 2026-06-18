@@ -527,6 +527,13 @@ async def raspar_tacs_pcd(
                             )
                             continue
 
+                        if not eh_pcd_regex:
+                            await _log(
+                                "Ignorado sem evid\u00eancia expl\u00edcita de PCD: "
+                                f"{empresa.get('razao_social', '?')}"
+                            )
+                            continue
+
                         situacao = empresa.get("situacao", "")
 
                         if not situacao:

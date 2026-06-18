@@ -687,7 +687,87 @@ const FONTES = TODAS_PRTS.map(orgao => {
 console.log("FONTES:", FONTES.length);
 
 // ── CONFIGURAÇÃO DA API ───────────────────────────────────────────────
-const API_URL = 'https://tac-pcd-backend-1040741551146.us-central1.run.app';
+// const API_URL = 'https://tac-pcd-backend-1040741551146.us-central1.run.app';
+const API_URL = 'https://tac-pcd-backend-694664807518.us-central1.run.app';
+
+function normalizarOrgaoParaBackend(valor) {
+  if (!valor) return null;
+
+  const v = String(valor).trim().toLowerCase();
+
+  const mapa = {
+    'prt1': 'prt1-rj',
+    'prt1 — rio de janeiro': 'prt1-rj',
+    'prt2': 'prt2-sp',
+    'prt2 — são paulo': 'prt2-sp',
+    'prt2 — sao paulo': 'prt2-sp',
+    'prt3': 'prt3-mg',
+    'prt3 — minas gerais': 'prt3-mg',
+    'prt4': 'prt4-rs',
+    'prt4 — rio grande do sul': 'prt4-rs',
+    'prt5': 'prt5-ba',
+    'prt5 — bahia': 'prt5-ba',
+    'prt6': 'prt6-pe',
+    'prt6 — pernambuco': 'prt6-pe',
+    'prt7': 'prt7-ce',
+    'prt7 — ceará': 'prt7-ce',
+    'prt7 — ceara': 'prt7-ce',
+    'prt8': 'prt8-pa',
+    'prt8 — pará e amapá': 'prt8-pa',
+    'prt8 — para e amapa': 'prt8-pa',
+    'prt9': 'prt9-pr',
+    'prt9 — paraná': 'prt9-pr',
+    'prt9 — parana': 'prt9-pr',
+    'prt10': 'prt10-df-to',
+    'prt10 — distrito federal e tocantins': 'prt10-df-to',
+    'prt11': 'prt11-am-rr',
+    'prt11 — amazonas e roraima': 'prt11-am-rr',
+    'prt12': 'prt12-sc',
+    'prt12 — santa catarina': 'prt12-sc',
+    'prt13': 'prt13-pb',
+    'prt13 — paraíba': 'prt13-pb',
+    'prt13 — paraiba': 'prt13-pb',
+    'prt14': 'prt14-ro-ac',
+    'prt14 — rondônia e acre': 'prt14-ro-ac',
+    'prt14 — rondonia e acre': 'prt14-ro-ac',
+    'prt15': 'prt15-sp',
+    'prt15 — campinas': 'prt15-sp',
+    'prt16': 'prt16-ma',
+    'prt16 — maranhão': 'prt16-ma',
+    'prt16 — maranhao': 'prt16-ma',
+    'prt17': 'prt17-es',
+    'prt17 — espírito santo': 'prt17-es',
+    'prt17 — espirito santo': 'prt17-es',
+    'prt18': 'prt18-go',
+    'prt18 — goiás': 'prt18-go',
+    'prt18 — goias': 'prt18-go',
+    'prt19': 'prt19-al',
+    'prt19 — alagoas': 'prt19-al',
+    'prt20': 'prt20-se',
+    'prt20 — sergipe': 'prt20-se',
+    'prt21': 'prt21-rn',
+    'prt21 — rio grande do norte': 'prt21-rn',
+    'prt22': 'prt22-pi',
+    'prt22 — piauí': 'prt22-pi',
+    'prt22 — piaui': 'prt22-pi',
+    'prt23': 'prt23-mt',
+    'prt23 — mato grosso': 'prt23-mt',
+    'prt24': 'prt24-ms',
+    'prt24 — mato grosso do sul': 'prt24-ms',
+  };
+
+  if (mapa[v]) return mapa[v];
+
+  if (/^prt\d+[-\w]*$/.test(v)) return v;
+
+  const match = v.match(/prt\s*0?(\d+)/);
+  if (match) {
+    return mapa[`prt${Number(match[1])}`] || null;
+  }
+
+  return null;
+}
+
 
 // ── STATE ─────────────────────────────────────────────────────────────
 let empresas = [];
@@ -697,7 +777,6 @@ let jobHistory = [];
 let pdfCount = 0;
 let expandedId = null;
 let sortKey = 'score'; let sortDir = -1;
-let pollingTimer = null;
 
 // ── NORMALIZA dados da API para o formato do frontend ─────────────────
 function normalizar(e, i) {
@@ -795,10 +874,15 @@ function habilitarAcoesResultado(hasData = true) {
   if (btnXlsx) btnXlsx.disabled = !hasData;
 }
 
+// Variável global para controle do polling
+let pollingTimer = null;
+
 async function runAgent() {
   document.getElementById('btn-run').disabled = true;
-  const con  = document.getElementById('console');
+
+  const con = document.getElementById('console');
   const body = document.getElementById('console-body');
+
   con.classList.add('visible');
   body.innerHTML = '';
   setProgress(0);
@@ -812,70 +896,104 @@ async function runAgent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         paginas: 2,
-        orgao: document.getElementById('fil-orgao')?.value || null,
+        orgao: normalizarOrgaoParaBackend(document.getElementById('fil-orgao')?.value),
       }),
     });
 
-    if (!resp.ok) throw new Error(`Erro ao iniciar job: ${resp.status}`);
+    if (!resp.ok) {
+      throw new Error(`Erro ao iniciar job: ${resp.status}`);
+    }
+
     const job = await resp.json();
+
     logConsole('ok', `Job criado: ${job.job_id}`);
     logConsole('', 'Playwright abrindo portais MPT...');
 
     if (pollingTimer) clearInterval(pollingTimer);
+
     pollingTimer = setInterval(async () => {
       try {
         const sr = await fetch(`${API_URL}/api/scraper/status/${job.job_id}`);
+
+        if (!sr.ok) {
+          throw new Error(`Status HTTP ${sr.status}`);
+        }
+
         const status = await sr.json();
 
         setProgress(status.progresso || 0);
 
         const logs = status.log || [];
+
         if (logs.length > 0) {
           body.innerHTML = '';
-          logs.forEach(l => {
-            const type = l.includes('✓') || l.includes('OK') ? 'ok'
-                       : l.includes('⚠') || l.includes('Erro') ? 'warn' : '';
+
+          logs.forEach((l) => {
+            const type =
+              l.includes('✓') || l.includes('OK')
+                ? 'ok'
+                : l.includes('⚠') || l.includes('Erro')
+                  ? 'warn'
+                  : '';
+
             logConsole(type, l);
           });
         }
 
         if (status.status === 'done') {
           clearInterval(pollingTimer);
-          await carregarEmpresas();
+          pollingTimer = null;
+
+          if (typeof carregarEmpresas === 'function') {
+            await carregarEmpresas();
+          }
 
           const total = status.resultado?.total || 0;
+
           logConsole('ok', `✓ Job concluído — ${total} empresa(s) encontrada(s)`);
           setProgress(100);
 
           document.getElementById('btn-run').disabled = false;
-          habilitarAcoesResultado(filtered.length > 0);
 
-          toast(total > 0
-            ? `${total} empresa(s) com TAC PCD carregadas do Firestore`
-            : 'Nenhum TAC PCD encontrado nos portais MPT desta vez'
-          );
+          if (typeof habilitarAcoesResultado === 'function') {
+            habilitarAcoesResultado(total > 0);
+          }
+
+          if (typeof toast === 'function') {
+            toast(
+              total > 0
+                ? `${total} empresa(s) com TAC PCD carregadas do Firestore`
+                : 'Nenhum TAC PCD encontrado nos portais MPT desta vez'
+            );
+          }
         }
 
         if (status.status === 'error') {
           clearInterval(pollingTimer);
+          pollingTimer = null;
+
           logConsole('err', `Erro: ${status.resultado?.erro || 'desconhecido'}`);
           document.getElementById('btn-run').disabled = false;
         }
-
       } catch (e) {
         logConsole('warn', `Polling: ${e.message}`);
       }
     }, 5000);
-
   } catch (err) {
     logConsole('err', err.message);
     document.getElementById('btn-run').disabled = false;
   }
 }
 
+
 async function carregarEmpresas() {
   try {
     const r = await fetch(`${API_URL}/api/empresas/?limite=500`);
+
+    if (!r.ok) {
+      throw new Error(`HTTP ${r.status}`);
+    }
+
     const data = await r.json();
 
     empresas = (data || []).map(normalizar);
@@ -897,7 +1015,6 @@ async function carregarEmpresas() {
 
     renderJobs();
     habilitarAcoesResultado(filtered.length > 0);
-
   } catch (e) {
     toast('Erro ao carregar empresas: ' + e.message);
   }

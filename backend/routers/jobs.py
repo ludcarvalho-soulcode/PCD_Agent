@@ -1,7 +1,7 @@
 """Router: /api/jobs"""
 from fastapi import APIRouter, HTTPException
 # CORREÇÃO: Importação corrigida para o caminho absoluto a partir da raiz do projeto
-from backend.services import firestore_service as fs
+from services import firestore_service as fs
 
 router = APIRouter()
 

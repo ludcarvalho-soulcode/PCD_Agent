@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 from playwright.async_api import async_playwright
 import asyncio
-from bs4 import BeautifulSoup # Import corrigido para o topo do arquivo
+from bs4 import BeautifulSoup
 
 router = APIRouter()
 
@@ -39,12 +39,12 @@ async def testar_portal(url: str = "https://www.prt2.mpt.mp.br/servicos/termos-d
             # Abre a página
             resp = await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             resultado["status"] = resp.status if resp else None
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
 
             resultado["titulo"] = await page.title()
 
             # Verifica botão filtrar
-            for sel in ["input[value*='iltrar']", "button:text('Filtrar')", "a:text('Filtrar')", "[value='Filtrar']"]:
+            for sel in ["button:text('Filtrar')", "input[value*='iltrar']", "a:text('Filtrar')", "[value='Filtrar']"]:
                 try:
                     el = await page.query_selector(sel)
                     if el:
@@ -53,12 +53,20 @@ async def testar_portal(url: str = "https://www.prt2.mpt.mp.br/servicos/termos-d
 
                         # Clica no filtrar
                         await el.click()
-                        await asyncio.sleep(3)
+                        
+                        # ⏳ AJUSTE AQUI: Espera o modal "Aguarde..." sumir antes de seguir para a tabela
+                        try:
+                            await page.wait_for_selector("*:text('Aguarde')", state="hidden", timeout=45_000)
+                        except Exception:
+                            # Fallback caso o seletor suma ou mude de nome
+                            await asyncio.sleep(10)
+                            
+                        await asyncio.sleep(2) # Estabilização final
                         break
                 except Exception:
                     continue
 
-            # Verifica tabela
+            # Verifica tabela pós-carregamento real
             tabela = await page.query_selector("table")
             if tabela:
                 resultado["tabela_encontrada"] = True
@@ -79,6 +87,12 @@ async def testar_portal(url: str = "https://www.prt2.mpt.mp.br/servicos/termos-d
             texto = soup.get_text(separator=" ", strip=True)
             resultado["texto_pagina"] = texto[:2000]
             resultado["html_resumo"] = html[:3000]
+
+            # Opcional: Salva um screenshot de teste também se quiser auditar por aqui
+            try:
+                await page.screenshot(path="screenshot_diag_prt2.png", full_page=True)
+            except Exception:
+                pass
 
             await browser.close()
 

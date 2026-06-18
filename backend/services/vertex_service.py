@@ -2,17 +2,23 @@
 Serviço Vertex AI — Gemini 2.5 Flash Lite
 Prompt otimizado para extrair dados de TACs PCD do MPT
 baseado na estrutura real dos documentos (Lei 8.213/91, art. 93)
+Integrado nativamente com Schemas Pydantic.
 """
 import json
 import logging
 import os
 import re
-from typing import Optional
+from typing import Optional, List
 
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 
-PROJECT_ID = os.getenv("GCP_PROJECT_ID", "devsprojects-af12e")
+# IMPORTANTE: Altere o caminho abaixo para corresponder ao seu arquivo de schemas
+from models.schemas import Empresa, SituacaoTAC
+
+logger = logging.getLogger(__name__)
+
+PROJECT_ID = os.getenv("GCP_PROJECT_ID", "tutores-lms")
 LOCATION   = os.getenv("GCP_LOCATION",   "us-central1")
 MODEL_NAME = "gemini-2.5-flash-lite"
 
@@ -47,6 +53,36 @@ def _empresa_extraida_valida(empresa: dict) -> bool:
 
     razao = (empresa.get("razao_social") or "").strip()
     situacao = (empresa.get("situacao") or "").strip()
+    motivo = (empresa.get("motivo") or "").lower()
+
+    bloqueios_motivo = [
+        "não menciona a cota pcd",
+        "nao menciona a cota pcd",
+        "não menciona especificamente a cota pcd",
+        "nao menciona especificamente a cota pcd",
+        "não menciona a lei 8.213",
+        "nao menciona a lei 8.213",
+        "não é pcd",
+        "nao é pcd",
+        "não se trata de pcd",
+        "nao se trata de pcd",
+
+        # NOVOS
+    "não trata de cota pcd",
+    "nao trata de cota pcd",
+    "não aborda especificamente a cota pcd",
+    "nao aborda especificamente a cota pcd",
+    "trabalho infantil",
+    "aprendizagem",
+    "aprendizes",
+    "assédio moral",
+    "assedio moral",
+    "assédio sexual",
+    "assedio sexual",
+    ]
+
+    if any(b in motivo for b in bloqueios_motivo):
+        return False
 
     if not razao or not situacao:
         return False
@@ -63,261 +99,250 @@ def _empresa_extraida_valida(empresa: dict) -> bool:
 
     for campo in ["num_funcionarios", "cota_exigida", "cota_cumprida"]:
         valor = empresa.get(campo, 0)
-        if not isinstance(valor, int) or valor < 0:
+        try:
+            valor_int = int(valor)
+            if valor_int < 0:
+                return False
+        except (ValueError, TypeError):
             return False
 
-    cota_exigida = empresa.get("cota_exigida", 0)
-    cota_cumprida = empresa.get("cota_cumprida", 0)
+    cota_exigida = int(empresa.get("cota_exigida", 0) or 0)
+    cota_cumprida = int(empresa.get("cota_cumprida", 0) or 0)
 
     if cota_exigida > 0 and cota_cumprida > cota_exigida:
         return False
 
-    cnpj = empresa.get("cnpj", "")
-    if cnpj and not _cnpj_valido(cnpj):
+    cnpj = empresa.get("cnpj") or ""
+    if not _cnpj_valido(cnpj):
         return False
 
     return True
 
 
-def _eh_documento_tac_pcd(texto: str) -> bool:
-    if not texto or len(texto) < 50:
-        print(f"DEBUG: Texto muito curto ou vazio: {texto}")
-        return False
+def _normalizar_texto_para_busca(texto: str) -> str:
     """
-    Pré-filtro de alta precisão em Python.
-    Utiliza exclusão estrita combinada com um sistema de pontuação por relevância
-    para garantir que o assunto principal do documento é a cota de PCD (Lei 8.213/91).
+    Normaliza texto extraído de PDF para busca por regex.
+    Alguns PDFs do MPT podem vir com trechos invertidos/espelhados na extração.
+    Por isso a busca considera texto normal + texto invertido.
     """
     if not texto:
-        return False
-        
-    texto = texto.lower()
+        return ""
 
-    # 1. Validação obrigatória de formato: Precisa de ser um TAC
+    texto_normal = texto.lower()
+
+    try:
+        texto_invertido = texto[::-1].lower()
+    except Exception:
+        texto_invertido = ""
+
+    combinado = f"{texto_normal}\n{texto_invertido}"
+
+    # Remove excesso de espaços, mas mantém acentos.
+    combinado = re.sub(r"\s+", " ", combinado)
+    return combinado.strip()
+
+
+def _eh_documento_tac_pcd(texto: str) -> bool:
+    """
+    Pré-filtro local para decidir se vale chamar o Gemini.
+
+    Estratégia:
+    1. O documento precisa parecer um TAC/TAC ajustamento.
+    2. Precisa ter evidência objetiva de PCD/cota legal/reabilitados/art. 93.
+    3. Exclusões só eliminam o documento quando NÃO houver evidência forte de PCD.
+       Isso evita descartar um TAC PCD só porque o texto também menciona CLT, OIT,
+       segurança do trabalho ou outro termo genérico.
+    """
+    if not texto or len(texto.strip()) < 50:
+        logger.info("Pré-filtro PCD: texto vazio ou muito curto.")
+        return False
+
+    t = _normalizar_texto_para_busca(texto)
+
     padroes_tac = [
         r"termo\s+de\s+ajuste\s+de\s+conduta",
         r"termo\s+de\s+ajustamento\s+de\s+conduta",
         r"termo\s+de\s+compromisso\s+de\s+ajustamento\s+de\s+conduta",
+        r"termo\s+de\s+compromisso\s+e\s+ajustamento\s+de\s+conduta",
         r"\btac\b",
     ]
-    tem_tac = any(re.search(p, texto) for p in padroes_tac)
+    tem_tac = any(re.search(p, t, flags=re.I) for p in padroes_tac)
+
     if not tem_tac:
+        logger.info("Pré-filtro PCD: descartado porque não parece TAC.")
         return False
 
-    # 2. Termos de exclusão altamente estritos (Se contiver QUALQUER um destes, descarta no imediato)
+    # Evidências fortes de TAC PCD / cota legal.
+    evidencias_fortes = [
+        r"art\.?\s*93\s+da\s+lei\s*n?[ºo]?\s*8\.?\s*213",
+        r"artigo\s*93\s+da\s+lei\s*n?[ºo]?\s*8\.?\s*213",
+        r"lei\s*n?[ºo]?\s*8\.?\s*213.{0,80}art\.?\s*93",
+        r"lei\s*n?[ºo]?\s*8\.?\s*213.{0,80}artigo\s*93",
+        r"reserva\s+legal\s+de\s+cargos",
+        r"cota\s+legal\s+(?:de|para)\s+(?:pessoas\s+com\s+defici[eê]ncia|pcd|reabilitad)",
+        r"cotas?\s+(?:de|para)\s+(?:pessoas\s+com\s+defici[eê]ncia|pcd|reabilitad)",
+        r"contrata[cç][aã]o\s+de\s+pessoas\s+com\s+defici[eê]ncia",
+        r"benefici[aá]rios?\s+reabilitad[oa]s?\s+da\s+previd[eê]ncia\s+social",
+    ]
+
+    # Evidências médias. Duas ou mais médias também podem liberar o Gemini.
+    evidencias_medias = [
+        r"pessoa[s]?\s+com\s+defici[eê]ncia",
+        r"pessoa[s]?\s+portadora[s]?\s+de\s+defici[eê]ncia",
+        r"portador(?:a|es|as)?\s+de\s+defici[eê]ncia",
+        r"\bpcd\b",
+        r"\bpcds\b",
+        r"deficiente[s]?",
+        r"reabilitad[oa]s?",
+        r"lei\s+de\s+cotas?",
+        r"cota[s]?\s+pcd",
+        r"aprendiz(?:es)?.{0,80}pessoas\s+com\s+defici[eê]ncia",
+        r"empregados?\s+com\s+defici[eê]ncia",
+        r"trabalhadores?\s+com\s+defici[eê]ncia",
+        r"vagas?\s+(?:para|destinadas?\s+a)\s+(?:pcd|pessoas\s+com\s+defici[eê]ncia)",
+        r"art\.?\s*93\b",
+        r"artigo\s*93\b",
+        r"8\.?\s*213\s*/?\s*91",
+        r"8\.?\s*213",
+    ]
+
+    fortes = [p for p in evidencias_fortes if re.search(p, t, flags=re.I)]
+    medias = [p for p in evidencias_medias if re.search(p, t, flags=re.I)]
+
+    tem_evidencia_pcd = bool(fortes) or len(medias) >= 2
+
+    if not tem_evidencia_pcd:
+        logger.info(
+            "Pré-filtro PCD: TAC sem evidência suficiente de PCD. "
+            f"fortes={len(fortes)} medias={len(medias)}"
+        )
+        return False
+
+    # Exclusões de assuntos que geram falso positivo.
+    # Só bloqueiam se não houver evidência forte.
     padroes_exclusao = [
-        # Fraudes Processuais / Lides Simuladas / Quitações judiciais
-        r"lide[s]?\s+simulada[s]?",
-        r"fraude[s]?\s+processual[is]?",
-        r"acordo[s]?\s+extrajudicial[is]?",
-        r"homologa[cç][aã]o\s+de\s+transa[cç][aã]o",
-        r"homologa[cç][aã]o\s+de\s+acordo",
-        r"jurisdi[cç][aã]o\s+volunt[aá]ria",
-        r"quita[cç][aã]o\s+geral",
-        r"verbas\s+rescis[oó]rias",
-        
-        # Saúde, Higiene e Segurança do Trabalho (Acidentes de Trabalho e NRs)
-        r"art\.?\s*22\s+da\s+lei\s*n?[ºo]?\s*8\.?213\/?91", # CAT / Acidente
+        r"trabalho\s+infantil",
+        r"cota[s]?\s+de\s+aprendizagem",
+        r"cota[s]?\s+(?:para\s+)?aprendiz(?:es)?",
+        r"jovem\s+aprendiz",
+        r"lei\s+de\s+aprendizagem",
+        r"art\.?\s*429\b",
+        r"artigo\s*429\b",
         r"comunica[cç][aã]o\s+de\s+acidente\s+de\s+trabalho",
         r"\bcat\b",
         r"acidente[s]?\s+d[eou]\s+trabalho",
-        r"doen[cç]a[s]?\s+(?:ocupacional|do\s+trabalho|profissional)",
-        r"sa[uú]de\s+(?:e|com)\s+seguran[cç]a",
-        r"seguran[cç]a\s+do\s+trabalho",
         r"meio\s+ambiente\s+do\s+trabalho",
+        r"seguran[cç]a\s+do\s+trabalho",
         r"\bcipa\b",
-        r"equipamento[s]?\s+de\s+prote[cç][aã]o",
-        r"ergon[oô]mic",
-        r"risco[s]?\s+ocupaciona",
-        r"exame[s]?\s+m[eé]dico[s]?",
-        r"\baso\b",
         r"\bpgr\b",
-        r"programa\s+de\s+gerenciamento\s+de\s+riscos",
         r"\bpcmso\b",
         r"\bppra\b",
         r"\bnr-\d+",
-        r"atividade[s]?\s+insalubre[s]?",
-        r"atividade[s]?\s+perigosa[s]?",
-        
-        # Legislação de Aprendizagem / Trabalho Infantil / Menores
-        r"lei\s*n?[ºo]?\s*8\.?069",                         # Lei do ECA (Estatuto da Criança e do Adolescente)
-        r"estatuto\s+da\s+crian[cç]a\s+e\s+do\s+adolescente",
-        r"\beca\b",
-        r"conven[cç][aã]o\s+(?:138|182)",                    # Convenções da OIT sobre Trabalho Infantil
-        r"\boit\b",                                          # Organização Internacional do Trabalho
-        r"trabalho\s+(?:de\s+)?menor(?:es)?",
-        r"trabalho\s+infantil",
-        r"menor(?:es)?\s+de\s+1[468]",
-        r"adolescente",
-        r"criança[s]?",
-        r"crianca[s]?",
-        r"jovem\s+aprendiz",
-        r"aprendiz",
-        r"aprendizado",
-        r"cota[s]?\s+de\s+aprendizagem",
-        r"cota[s]?\s+(?:para\s+)?aprendiz(?:es)?",
-        r"lei\s+de\s+aprendizagem",
-        r"art\.?\s*429",                                     # Art. 429 CLT (Cota de Aprendizagem)
-        r"artigo\s*429",
-        r"art\.?\s*403",                                     # Art. 403 CLT (Proibição de trabalho a menor)
-        r"art\.?\s*7[ºo]?\s*,\s*xxxiii",                     # Inciso da CF contra Trabalho Infantil
-        r"explora[cç][aã]o\s+de\s+menor",
-        
-        # Outros Assuntos Irrelevantes (Assédio, Jornada e Direitos Individuais)
         r"ass[eé]dio\s+moral",
         r"ass[eé]dio\s+sexual",
         r"jornada\s+de\s+trabalho",
-        r"horas?\s+extra(?:ordin[aá]ria)?s?",
-        r"intervalo\s+intrajornada",
-        r"descanso\s+semanal",
-        r"atraso\s+no\s+pagamento",
-        r"sal[aá]rio[s]?",
+        r"horas?\s+extra",
+        r"verbas\s+rescis[oó]rias",
         r"fgts",
-        r"est[aá]gio[s]?",
-        r"estagi[aá]rio[s]?",
     ]
-    tem_exclusao = any(re.search(p, texto) for p in padroes_exclusao)
-    if tem_exclusao:
+
+    tem_exclusao = any(re.search(p, t, flags=re.I) for p in padroes_exclusao)
+
+    if tem_exclusao and not fortes:
+        logger.info(
+            "Pré-filtro PCD: descartado por exclusão sem evidência forte de PCD. "
+            f"fortes={len(fortes)} medias={len(medias)}"
+        )
         return False
 
-    # 3. Sistema de Pontuação por Relevância de PCD
-    score = 0
-    
-    # Menções à Lei Federal de Cotas (Lei 8.213) -> Relevância Máxima
-    if re.search(r"8\.?213", texto):
-        score += 2
-        
-    # Menções ao Artigo da Cota (Artigo 93) -> Relevância Máxima
-    if re.search(r"art\.?\s*93|artigo\s*93", texto):
-        score += 3
-        
-    # Menções diretas a termos de deficiência -> Relevância Média
-    if re.search(r"pessoa[s]?\s+com\s+defici[eê]ncia|\bpcd\b|\bpcds\b|deficiente[s]?", texto):
-        score += 3
-        
-    # Menções a trabalhadores reabilitados -> Relevância Média
-    if re.search(r"reabilitad[oa]s?", texto):
-        score += 2
-        
-    # Menções gerais a reservas ou cotas -> Relevância Baixa
-    if re.search(r"cota[s]?|reserva\s+legal", texto):
-        score += 1
-
-    # O documento só é aceite se acumular pelo menos 5 pontos de relevância.
-    tem_art93 = re.search(r"art\.?\s*93|artigo\s*93", texto)
-    tem_pcd = re.search(
-    r"pessoa[s]?\s+com\s+defici[eê]ncia|\bpcd\b|\bpcds\b|reabilitad[oa]s?|lei\s+de\s+cotas|cota[s]?\s+(?:pcd|para\s+pessoas?\s+com\s+defici[eê]ncia)",
-    texto
-   )
-
-    return score >= 4
+    logger.info(
+        "Pré-filtro PCD: aceito para Gemini. "
+        f"fortes={len(fortes)} medias={len(medias)} exclusao={tem_exclusao}"
+    )
+    return True
 
 async def extrair_tacs_do_html(conteudo: str, orgao: str = "") -> list[dict]:
     print("ENTROU NO GEMINI - extrair_tacs_do_html")
-    """
-    Analisa texto de documento TAC PCD e extrai todos os dados estruturados.
-    """
+
+    # Não bloqueia aqui.
+    # O filtro regex pode falhar em PDFs do MPT.
+    # A decisão final fica com o Gemini pelo prompt.
     model = get_model()
 
     # 2. Prompt com instrução de Sistema altamente restritiva no início
-    prompt = f"""SISTEMA: VOCÊ É UM FILTRO DE SEGURANÇA. 
-    SE O DOCUMENTO NÃO FOR UM "TERMO DE AJUSTAMENTO DE CONDUTA" (TAC) ESPECÍFICO SOBRE A LEI 8.213/91 (COTA DE PCD), VOCÊ DEVE IGNORAR TODO O TEXTO E RETORNAR APENAS: {{"empresas": []}}.
-    
-    SE O DOCUMENTO FOR SOBRE TRABALHO INFANTIL, APRENDIZAGEM, SEGURANÇA DO TRABALHO, ASSÉDIO OU FRAUDE PROCESSUAL, RETORNE APENAS: {{"empresas": []}}.
+    prompt = f"""SISTEMA:
+Você é um especialista sênior em análise de TACs do Ministério Público do Trabalho.
+Sua tarefa é EXTRAIR dados somente quando o documento for um TAC sobre COTA PCD
+(Lei 8.213/91, art. 93, pessoas com deficiência ou reabilitados da Previdência Social).
 
-    Você é especialista em análise de Termos de Ajuste de Conduta (TAC) do Ministério Público do Trabalho sobre Lei 8.213/91, art. 93 (cotas para PCDs).
+RETORNE [] quando:
+- O documento não for TAC/TAC ajustamento.
+- O assunto principal for apenas aprendizagem, trabalho infantil, segurança do trabalho,
+  assédio, jornada, FGTS, verbas rescisórias, CAT/acidente de trabalho ou fraude processual.
+- Não houver evidência explícita de PCD, pessoa com deficiência, reabilitado,
+  art. 93 ou Lei 8.213/91 relacionada à reserva/cota de cargos.
 
-    Analise o documento e extraia TODOS os campos abaixo com precisão.
+IMPORTANTE:
+- Não invente dados.
+- Não use cidade, MPT, procuradoria, comarca, endereço ou órgão público como empresa.
+- A empresa deve ser a compromissária/inquirida/requerida/empregadora associada a CNPJ.
+- Se não tiver certeza de que é TAC PCD, retorne [].
 
-CAMPOS OBRIGATÓRIOS:
-- razao_social: nome completo da empresa (ex: "RI HAPPY BRINQUEDOS S.A.")
-- cnpj: CNPJ no formato XX.XXX.XXX/XXXX-XX (ex: "58.731.662/0001-11")
-- endereco: endereço completo com CEP (ex: "Av. Eng. Luiz Carlos Berrini, 105, 16º andar — São Paulo/SP, CEP 04.571-900")
-- num_funcionarios: total de funcionários (número inteiro, 0 se não mencionado)
-- cota_exigida: número de PCDs exigidos por lei (número inteiro, 0 se não mencionado)
-- cota_cumprida: número de PCDs que a empresa possuía quando o TAC foi firmado (número inteiro, 0 se não mencionado)
-- prazo_cumprimento: prazo para cumprir a obrigação. Procure por QUALQUER uma dessas formas:
-  * "Prazo para o cumprimento desta obrigação: [data]" → extraia a data
-  * "no prazo de X anos/meses a partir de [data]" → ex: "2 anos a partir de 18/03/2014"
-  * "no prazo suplementar de X anos" → ex: "2 anos suplementares"
-  * "até [data]" → extraia a data
-  * Cronograma por semestres → ex: "4 semestres (Sem1: 88, Sem2: 88, Sem3: 88, Sem4: 91)"
-  * Se não houver prazo explícito, coloque ""
-- responsavel_nome: nome completo do representante da EMPRESA que assinou (ex: "Guilherme de Biagi Pereira"). NÃO é o Procurador do MPT
-- responsavel_cargo: cargo do representante (ex: "Diretor Financeiro")
-- advogado: nome do advogado que representa a empresa + OAB (ex: "Dra. Idaliana Blenda Silva Mota — OAB/SP 392.571")
-- email: e-mail da empresa se mencionado (senão "")
-- telefone: telefone da empresa se mencionado (senão "")
-- situacao: 
-  * "TAC descumprido" — descumprimento, inadimplência, empresa não assinou cronograma
-  * "TAC em cumprimento" — empresa assinou e tem prazo/cronograma em andamento  
-  * "TAC cumprido" — cumprimento total, encerrado, arquivado
-- motivo: 2-3 frases descrevendo: total funcionários, cota exigida, cota cumprida, déficit e o que foi acordado
-- setor: setor econômico (Varejo, Indústria, Saúde, Logística, Alimentício, Financeiro, Tecnologia, Serviços, Transporte, Construção Civil)
+CAMPOS A EXTRAIR:
+- razao_social: nome jurídico completo da empresa compromissária/inquirida
+- cnpj: CNPJ no formato XX.XXX.XXX/XXXX-XX, se existir
+- endereco: endereço completo, se existir
+- num_funcionarios: total de empregados citado no TAC, ou 0
+- cota_exigida: número de PCDs/reabilitados exigidos, ou 0
+- cota_cumprida: número de PCDs/reabilitados já cumpridos, ou 0
+- motivo: resumo curto explicando a obrigação PCD, déficit e prazo/conduta assumida
+- situacao: exatamente "TAC em cumprimento", "TAC descumprido" ou "TAC cumprido"
+- setor: um destes quando possível: Varejo, Indústria, Saúde, Logística, Alimentício,
+  Financeiro, Tecnologia, Serviços, Transporte, Construção Civil
+- orgao: use exatamente "{orgao}"
+- numero_procedimento: número do procedimento/inquérito civil, se citado
+- data_abertura: data de assinatura/firmamento no formato DD/MM/AAAA, se citada
 
-REGRAS:
-- Se NÃO for TAC sobre cota PCD (Lei 8.213/91, art. 93, pessoa com deficiência, PCD, reabilitados ou cota legal), retorne {{"empresas": []}}
-- Não invente dados. Extraia somente informações explícitas no documento.
-- Não estime número de funcionários, cota exigida ou cota cumprida.
-- Se não houver evidência documental para números, retorne 0.
-- Se não houver evidência documental para textos, retorne "".
+COMO CLASSIFICAR SITUAÇÃO:
+- Se o texto falar em descumprimento, inadimplemento, execução, multa por não cumprir,
+  use "TAC descumprido".
+- Se for um TAC recém firmado com obrigações e prazos, use "TAC em cumprimento".
+- Se disser integralmente cumprido, arquivado por cumprimento ou encerrado, use "TAC cumprido".
 
-- A razao_social deve ser o nome jurídico real da empresa compromissária, requerida, investigada ou empregadora.
-- Se houver cidade e empresa no documento, escolha sempre a empresa.
-- Não use município, localidade, endereço, comarca, estado ou local de assinatura como razao_social.
-- Nunca use cidade, órgão público, comarca, vara, procuradoria ou unidade do MPT como razão social da empresa.
-- Nunca retorne valores como "Empresa — PETRÓPOLIS", "Empresa — RIO DE JANEIRO" ou qualquer variação semelhante.
-- Priorize nomes que estejam associados a CNPJ, empregadora, empresa, compromissária, requerida ou representante legal.
-- Se não for possível identificar claramente a empresa responsável pelo TAC, retorne {{"empresas": []}}.
-
-- responsavel_nome é sempre o representante da EMPRESA, nunca o Procurador do MPT.
-- prazo_cumprimento: procure exatamente pela frase "Prazo para o cumprimento desta obrigação:" ou similar.
+RETORNE APENAS JSON válido seguindo o schema. Não explique.
 
 Órgão MPT: {orgao}
 
 DOCUMENTO:
 {conteudo[:12000]}
-
-Retorne APENAS JSON válido:
-{{"empresas": [{{
-  "razao_social": "",
-  "cnpj": "",
-  "endereco": "",
-  "num_funcionarios": 0,
-  "cota_exigida": 0,
-  "cota_cumprida": 0,
-  "prazo_cumprimento": "",
-  "responsavel_nome": "",
-  "responsavel_cargo": "",
-  "advogado": "",
-  "email": "",
-  "telefone": "",
-  "situacao": "",
-  "motivo": "",
-  "setor": ""
-}}]}}
 """
-    cfg = GenerationConfig(temperature=0.0, max_output_tokens=2048)
+
+    # O Vertex AI lê dinamicamente a estrutura da sua classe List[Empresa] do Pydantic
+    cfg = GenerationConfig(
+        temperature=0.0, 
+        max_output_tokens=2048,
+        response_mime_type="application/json",
+    )
     
     # Adição de Debug para verificar o status
     print(f"DEBUG: Enviando prompt para o Gemini (tamanho: {len(prompt)})...")
     try:
         response = model.generate_content(prompt, generation_config=cfg)
         print("DEBUG: Resposta recebida do Gemini com sucesso!")
+        
+        result = _parse_json(response.text)
+        
+        if isinstance(result, list):
+            return [
+                empresa for empresa in result
+                if _empresa_extraida_valida(empresa)
+            ]
+            
     except Exception as e:
         print(f"ERRO CRÍTICO NA CHAMADA DO GEMINI: {e}")
-        return []
-
-    result = _parse_json(response.text)
-
-    if isinstance(result, dict):
-        empresas = result.get("empresas", [])
-        return [
-            empresa for empresa in empresas
-            if _empresa_extraida_valida(empresa)
-        ]
-
+        
     return []
+
 
 async def enriquecer_empresa(empresa: dict) -> dict:
     """Enriquece dados de contacto faltantes usando o Gemini."""
@@ -332,7 +357,11 @@ Empresa: {json.dumps(empresa, ensure_ascii=False)}
 Preencha apenas os campos vazios: email, telefone, endereco, setor.
 Retorne JSON com os mesmos campos. Apenas JSON.
 """
-    cfg = GenerationConfig(temperature=0.2, max_output_tokens=512)
+    cfg = GenerationConfig(
+        temperature=0.2, 
+        max_output_tokens=512,
+        response_mime_type="application/json"
+    )
     try:
         response = model.generate_content(prompt, generation_config=cfg)
         enriched = _parse_json(response.text)
@@ -354,6 +383,13 @@ async def classificar_oportunidade(empresa: dict) -> dict:
     cumpr = empresa.get("cota_cumprida",   0) or 0
     func  = empresa.get("num_funcionarios",0) or 0
     sit   = empresa.get("situacao",        "") or ""
+    
+    # Faz o tratamento se a situação vier como o objeto Enum do Pydantic
+    if isinstance(sit, SituacaoTAC):
+        sit_str = sit.value
+    else:
+        sit_str = str(sit)
+        
     deficit = max(0, exig - cumpr)
 
     # Score determinístico (0-10)
@@ -365,9 +401,9 @@ async def classificar_oportunidade(empresa: dict) -> dict:
     score = round(pct_deficit * 7)  # défice vale 70%
 
     # Bónus por situação
-    if "descumprido" in sit.lower():
+    if "descumprido" in sit_str.lower():
         score += 2
-    elif "cumprimento" in sit.lower():
+    elif "cumprimento" in sit_str.lower():
         score += 1
 
     # Bónus por dimensão
@@ -386,7 +422,7 @@ async def classificar_oportunidade(empresa: dict) -> dict:
 - Cota exigida: {exig} PCDs
 - Cota cumprida: {cumpr} PCDs  
 - Déficit: {deficit} vagas
-- Situação: {sit}
+- Situação: {sit_str}
 
 Gere em JSON:
 {{
@@ -395,7 +431,11 @@ Gere em JSON:
 }}
 Apenas JSON."""
 
-    cfg = GenerationConfig(temperature=0.3, max_output_tokens=256)
+    cfg = GenerationConfig(
+        temperature=0.3, 
+        max_output_tokens=256,
+        response_mime_type="application/json"
+    )
     rec = "Empresa com déficit de PCDs. Oportunidade para prospecção imediata."
     perfis = ["Auxiliar administrativo", "Operador de caixa", "Assistente de estoque"]
     try:
@@ -422,7 +462,6 @@ async def buscar_dados_cnpj(cnpj: str) -> dict:
     Retorna a dimensão, endereço, telefone, e-mail e razão social oficial.
     """
     import httpx
-    import re
 
     # Limpa o CNPJ
     cnpj_limpo = re.sub(r"[^\d]", "", cnpj)
@@ -482,3 +521,5 @@ async def buscar_dados_cnpj(cnpj: str) -> dict:
     except Exception as e:
         logger.warning(f"BrasilAPI erro para CNPJ {cnpj}: {e}")
         return {}
+
+        

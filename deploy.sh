@@ -6,7 +6,7 @@
 # ╚══════════════════════════════════════════════════════════════╝
 set -e
 
-PROJECT_ID="tutores-lms"
+PROJECT_ID="devsprojects-af12e"
 REGION="us-central1"
 BACKEND_SVC="tac-pcd-backend"
 FRONTEND_SVC="tac-pcd-frontend"

@@ -11,12 +11,17 @@ Estratégia de upsert:
   Se não existe → cria novo documento
   Isso evita duplicatas quando o agente executa múltiplas vezes
 """
+import os
+
+# Define o caminho correto para o arquivo de credenciais que está na raiz
+CREDENCIAIS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "credenciais.json")
 import logging
 import os
 import re
 import uuid
 from datetime import datetime
 from typing import Optional
+from google.oauth2 import service_account
 
 from google.cloud import firestore
 

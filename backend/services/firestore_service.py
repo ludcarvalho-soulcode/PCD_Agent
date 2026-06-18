@@ -34,9 +34,20 @@ _db: Optional[firestore.AsyncClient] = None
 def get_db() -> firestore.AsyncClient:
     global _db
     if _db is None:
-        # Inicialização protegida
-        credenciais = service_account.Credentials.from_service_account_file(CREDENCIAIS_PATH)
-        _db = firestore.AsyncClient(credentials=credenciais, project=PROJECT_ID, database="agents-internos-pcd")
+        if os.path.exists(CREDENCIAIS_PATH):
+            logger.info("Firestore: usando credenciais locais em credenciais.json")
+            credenciais = service_account.Credentials.from_service_account_file(CREDENCIAIS_PATH)
+            _db = firestore.AsyncClient(
+                credentials=credenciais,
+                project=PROJECT_ID,
+                database="agents-internos-pcd",
+            )
+        else:
+            logger.info("Firestore: usando Application Default Credentials")
+            _db = firestore.AsyncClient(
+                project=PROJECT_ID,
+                database="agents-internos-pcd",
+            )
     return _db
     
 def _chave_empresa(empresa: dict) -> str:

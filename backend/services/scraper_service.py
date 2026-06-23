@@ -517,6 +517,12 @@ async def raspar_tacs_pcd(
                             )
                             continue
 
+                        if not eh_pcd_regex:
+                            await _log(
+                                "Ignorado sem evidência explícita de PCD: "
+                                f"{empresa.get('razao_social', '?')}"
+                            )
+                            continue
 
                         situacao = empresa.get("situacao")
 
@@ -614,15 +620,9 @@ async def raspar_tacs_pcd(
                             await _log(
                                 f"   Ignorado sem oportunidade comercial: "
                                 f"{empresa.get('razao_social', '?')} — "
-                                f"{empresa.get('situacao')} — {tipo_lead or 'sem_oportunidade'}"
+                                f"{empresa.get('situacao')}"
                             )
                             continue
-
-                        if not eh_pcd_regex:
-                            await _log(
-                                "   Aceito por oportunidade identificada pelo Gemini, mesmo sem regex PCD: "
-                                f"{empresa.get('razao_social', '?')} — {tipo_lead}"
-                            )
 
                         todas_empresas.append(empresa)
 

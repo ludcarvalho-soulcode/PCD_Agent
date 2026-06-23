@@ -1,7 +1,7 @@
 """
 Scraper Service v6 — Sem filtro de data ou tamanho
-Analisa TACs do MPT e retorna apenas documentos relacionados a PCD
-com situação de interesse para prospecção.
+Analisa TACs do MPT e retorna documentos PCD com oportunidade real:
+lead_quente ou lead_acompanhamento.
 """
 
 import asyncio
@@ -53,22 +53,8 @@ FONTES = [
 
 FONTES_DICT = {fonte["id"]: fonte for fonte in FONTES}
 
-SITUACOES_ALVO = [
-    "TAC descumprido",
-    "TAC não assinado",
-    "ACP ajuizada",
-]
-
 
 def _normalizar_orgao(valor: Optional[str]) -> Optional[str]:
-    """
-    Aceita:
-    - prt1
-    - PRT1
-    - prt1-rj
-    - PRT1 — Rio de Janeiro
-    - PRT15 — Campinas
-    """
     if not valor:
         return None
 
@@ -102,7 +88,6 @@ def _normalizar_orgao(valor: Optional[str]) -> Optional[str]:
 def _extrair_texto_pdf(pdf_bytes: bytes) -> str:
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-
             total_paginas = len(pdf.pages)
 
             texto = ""
@@ -120,6 +105,7 @@ def _extrair_texto_pdf(pdf_bytes: bytes) -> str:
     except Exception as e:
         logger.error(f"Erro ao extrair PDF: {e}")
         return ""
+
 
 def _extrair_prazo_local(texto: str) -> str:
     t = texto.lower()
@@ -150,20 +136,30 @@ def _extrair_prazo_local(texto: str) -> str:
 def _classificar_situacao_local(texto: str) -> str:
     t = texto.lower()
 
-    if any(k in t for k in ["descumprido", "descumpriu", "inadimplente", "nao cumpriu", "não cumpriu"]):
+    descumprimento_explicito = [
+        "descumprimento constatado",
+        "inadimplemento",
+        "obrigação violada",
+        "obrigacao violada",
+        "execução",
+        "execucao",
+        "multa aplicada",
+        "multa cobrada",
+        "descumpriu",
+        "não cumpriu",
+        "nao cumpriu",
+    ]
+
+    if any(k in t for k in descumprimento_explicito):
         return "TAC descumprido"
 
-    if any(k in t for k in ["cumprimento total", "integralmente cumprido", "arquivado", "encerrado"]):
+    if any(k in t for k in ["cumprimento total", "integralmente cumprido", "arquivado por cumprimento", "encerrado por cumprimento"]):
         return "TAC cumprido"
 
     return "TAC em cumprimento"
 
 
 async def _esperar_tabela_carregar(page, log: Callable) -> None:
-    """
-    Não espera o texto 'Aguarde' sumir, porque em alguns portais ele fica no DOM.
-    Espera existir pelo menos uma linha real na tabela.
-    """
     await log("   ⏳ Aguardando linhas reais da tabela...")
 
     try:
@@ -330,11 +326,6 @@ async def raspar_tacs_pcd(
     paginas: int = 10,
     log_callback: Optional[Callable] = None,
 ) -> list[dict]:
-    """
-    Compatível com as duas chamadas:
-    - raspar_tacs_pcd(orgao="prt1")
-    - raspar_tacs_pcd(orgao_id="prt1-rj")
-    """
 
     async def _log(msg: str):
         logger.info(msg)
@@ -359,7 +350,7 @@ async def raspar_tacs_pcd(
 
     await _log(
         f"Iniciando scraping v6 — {len(fontes)} portal(is) | "
-        f"SEM filtro de data/tamanho | apenas PCD descumprido"
+        f"SEM filtro de data/tamanho | PCD com oportunidade real"
     )
 
     todas_empresas: list[dict] = []
@@ -449,6 +440,7 @@ async def raspar_tacs_pcd(
                     )
 
                     eh_pcd_regex = _eh_documento_tac_pcd(texto_pdf)
+
                     if not eh_pcd_regex:
                         await _log(
                             f"⚠️ Sem evidência regex de PCD. "
@@ -466,6 +458,7 @@ async def raspar_tacs_pcd(
                         await _log(
                             f"   Gemini retornou para {reg['procedimento']}: {empresas_gemini}"
                         )
+
                     except Exception as e:
                         await _log(f"   Gemini erro: {e}")
                         continue
@@ -473,10 +466,6 @@ async def raspar_tacs_pcd(
                     if not empresas_gemini:
                         await _log(f"   Gemini retornou vazio: {reg['procedimento']}")
                         continue
-
-                    await _log(
-                        f"   Tipo Gemini: {type(empresas_gemini)} | Valor: {repr(empresas_gemini)[:500]}"
-                    )
 
                     if isinstance(empresas_gemini, dict):
                         empresas_gemini = [empresas_gemini]
@@ -497,6 +486,7 @@ async def raspar_tacs_pcd(
                             continue
 
                         motivo_baixo = (empresa.get("motivo") or "").lower()
+
                         bloqueios_nao_pcd = [
                             "não menciona a cota pcd",
                             "nao menciona a cota pcd",
@@ -529,37 +519,41 @@ async def raspar_tacs_pcd(
 
                         if not eh_pcd_regex:
                             await _log(
-                                "Ignorado sem evid\u00eancia expl\u00edcita de PCD: "
+                                "Ignorado sem evidência explícita de PCD: "
                                 f"{empresa.get('razao_social', '?')}"
                             )
                             continue
 
-                        situacao = empresa.get("situacao", "")
+                        situacao = empresa.get("situacao")
 
                         if not situacao:
                             situacao = _classificar_situacao_local(texto_pdf)
                             empresa["situacao"] = situacao
-
-                        if situacao not in SITUACOES_ALVO and situacao != "TAC descumprido":
-                            await _log(
-                                f"   Ignorado ({situacao}): "
-                                f"{empresa.get('razao_social', '?')}"
-                            )
-                            continue
 
                         empresa["orgao"] = fonte["orgao"]
                         empresa["regiao"] = fonte["regiao"]
                         empresa["numero_procedimento"] = reg["procedimento"]
                         empresa["data_abertura"] = reg["data"]
                         empresa["doc_url"] = reg["doc_url"]
+                        empresa["pdf_url"] = reg["doc_url"]
 
-                        empresa.setdefault("num_funcionarios", 0)
-                        empresa.setdefault("cota_exigida", 0)
-                        empresa.setdefault("cota_cumprida", 0)
                         empresa.setdefault("setor", "A identificar")
 
+                        if empresa.get("num_funcionarios") == "":
+                            empresa["num_funcionarios"] = None
+
+                        if empresa.get("cota_exigida") == "":
+                            empresa["cota_exigida"] = None
+
+                        if empresa.get("cota_cumprida") == "":
+                            empresa["cota_cumprida"] = None
+
+                        if empresa.get("deficit_pcd") == "":
+                            empresa["deficit_pcd"] = None
+
                         if not empresa.get("prazo_cumprimento"):
-                            empresa["prazo_cumprimento"] = _extrair_prazo_local(texto_pdf)
+                            prazo_local = _extrair_prazo_local(texto_pdf)
+                            empresa["prazo_cumprimento"] = prazo_local or None
 
                         cnpj = empresa.get("cnpj") or ""
                         cnpj_limpo = re.sub(r"[^\d]", "", str(cnpj))
@@ -572,14 +566,18 @@ async def raspar_tacs_pcd(
                                     if dados_cnpj.get("razao_social_oficial"):
                                         empresa["razao_social"] = dados_cnpj["razao_social_oficial"]
 
-                                    if dados_cnpj.get("endereco_receita"):
+                                    if dados_cnpj.get("endereco_receita") and not empresa.get("endereco"):
                                         empresa["endereco"] = dados_cnpj["endereco_receita"]
 
                                     if not empresa.get("telefone") and dados_cnpj.get("telefone_receita"):
                                         empresa["telefone"] = dados_cnpj["telefone_receita"]
 
-                                    if not empresa.get("num_funcionarios") or empresa["num_funcionarios"] == 0:
-                                        empresa["num_funcionarios"] = dados_cnpj.get("num_funcionarios_estimado", 0)
+                                    empresa["num_funcionarios_estimado_externo"] = dados_cnpj.get(
+                                        "num_funcionarios_estimado_externo"
+                                    )
+                                    empresa["origem_num_funcionarios"] = dados_cnpj.get(
+                                        "origem_num_funcionarios"
+                                    )
 
                                     empresa["porte"] = dados_cnpj.get("porte", "")
                                     empresa["municipio"] = dados_cnpj.get("municipio", "")
@@ -603,18 +601,34 @@ async def raspar_tacs_pcd(
                             empresa["oportunidade"] = await classificar_oportunidade(empresa)
                         except Exception:
                             empresa["oportunidade"] = {
-                                "score_oportunidade": 8,
-                                "nivel": "Alta",
-                                "deficit_pcd": 0,
-                                "recomendacao": "TAC descumprido. Alta prioridade para prospecção.",
+                                "score_oportunidade": 1,
+                                "nivel": "Baixa",
+                                "deficit_pcd": empresa.get("deficit_pcd"),
+                                "recomendacao": "Sem oportunidade comercial explícita no TAC.",
                                 "perfis_sugeridos": [],
+                                "tipo_lead": empresa.get("tipo_lead") or "sem_oportunidade",
+                                "motivo_lead": empresa.get("motivo_lead"),
+                                "resumo_oportunidade": empresa.get("resumo_oportunidade"),
                             }
+
+                        tipo_lead = (
+                            empresa.get("tipo_lead")
+                            or empresa.get("oportunidade", {}).get("tipo_lead")
+                        )
+
+                        if tipo_lead not in ["lead_quente", "lead_acompanhamento"]:
+                            await _log(
+                                f"   Ignorado sem oportunidade comercial: "
+                                f"{empresa.get('razao_social', '?')} — "
+                                f"{empresa.get('situacao')}"
+                            )
+                            continue
 
                         todas_empresas.append(empresa)
 
                         await _log(
                             f"   OK {empresa.get('razao_social', '?')} — "
-                            f"{situacao} — score "
+                            f"{empresa.get('situacao')} — {tipo_lead} — score "
                             f"{empresa['oportunidade']['score_oportunidade']}/10"
                         )
 
@@ -629,7 +643,7 @@ async def raspar_tacs_pcd(
         await browser.close()
 
     await _log(
-        f"\nConcluído — {len(todas_empresas)} TAC(s) PCD descumprido(s) encontrado(s)."
+        f"\nConcluído — {len(todas_empresas)} TAC(s) PCD com oportunidade real encontrado(s)."
     )
 
     return todas_empresas

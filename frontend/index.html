@@ -779,53 +779,84 @@ let expandedId = null;
 let sortKey = 'score'; let sortDir = -1;
 
 // ── NORMALIZA dados da API para o formato do frontend ─────────────────
+function valorOuNull(v) {
+  return v === undefined || v === null || v === '' ? null : v;
+}
+
 function normalizar(e, i) {
-  const exig   = e.cota_exigida    || 0;
-  const cumpr  = e.cota_cumprida   || 0;
-  const deficit= Math.max(0, exig - cumpr);
-  const oport  = e.oportunidade    || {};
-  const score  = oport.score_oportunidade || 5;
+  const oport = e.oportunidade || {};
+  const score = oport.score_oportunidade ?? 5;
+
+  const tipoLead = valorOuNull(e.tipo_lead || oport.tipo_lead) || 'sem_oportunidade';
+  const resumoOportunidade = valorOuNull(e.resumo_oportunidade || oport.resumo_oportunidade);
+  const motivoLead = valorOuNull(e.motivo_lead || oport.motivo_lead);
+
   return {
     id:      e.id || `e${i}`,
-    nome:    e.razao_social || e.nome || '—',
-    setor:   e.setor        || 'A identificar',
-    regiao:  e.regiao       || '—',
-    estado:  e.estado       || '—',
-    cidade:  e.cidade       || '—',
-    orgao:   e.orgao        || '—',
-    func:    e.num_funcionarios || 0,
-    exig,
-    cumpr,
-    deficit,
-    sit:     e.situacao     || 'TAC em cumprimento',
-    proc:    e.numero_procedimento || e.proc || '—',
-    data:    e.data_abertura || e.data || '—',
-    cnpj:    e.cnpj         || '—',
+    nome:    e.razao_social || e.nome || 'não informado',
+    setor:   e.setor        || 'não informado',
+    regiao:  e.regiao       || 'não informado',
+    estado:  e.estado       || 'não informado',
+    cidade:  e.cidade       || 'não informado',
+    orgao:   e.orgao        || 'não informado',
+
+    // Dados documentais: não recalcular no front.
+    func:    valorOuNull(e.num_funcionarios),
+    exig:    valorOuNull(e.cota_exigida),
+    cumpr:   valorOuNull(e.cota_cumprida),
+    deficit: valorOuNull(e.deficit_pcd),
+
+    sit:     e.situacao     || 'não informado',
+    proc:    e.numero_procedimento || e.proc || 'não informado',
+    data:    e.data_abertura || e.data || 'não informado',
+    cnpj:    e.cnpj         || 'não informado',
     email:   e.email        || '',
     tel:     e.telefone     || '',
     end:     e.endereco     || '',
     pdfUrl:  e.pdf_url      || null,
     doc_url: e.doc_url      || '',
     perfis:  oport.perfis_sugeridos || [],
-    prazo:   e.prazo_cumprimento   || '',
+
+    prazo:   valorOuNull(e.prazo_cumprimento),
+    prazo_cumprimento_data: valorOuNull(e.prazo_cumprimento_data),
+    risco_multa: valorOuNull(e.risco_multa),
+    tipo_lead: tipoLead,
+    resumo_oportunidade: resumoOportunidade,
+    motivo_lead: motivoLead,
+    evidencia_textual: valorOuNull(e.evidencia_textual),
+
     responsavel: e.responsavel_nome || '',
     responsavel_cargo: e.responsavel_cargo || '',
     advogado: e.advogado    || '',
+    motivo: valorOuNull(e.motivo),
+
     oport: {
       score,
       nivel: oport.nivel || (score>=7?'Alta':score>=4?'Média':'Baixa'),
-      rec:   oport.recomendacao || 'Verificar manualmente no portal MPT.',
+      rec: resumoOportunidade || oport.recomendacao || 'não informado',
     }
   };
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────
-function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
-function hl(t,q){if(!q||!t)return t||'';const i=t.toLowerCase().indexOf(q.toLowerCase());if(i<0)return t;return t.slice(0,i)+'<mark style="background:#fef08a;border-radius:2px;padding:0 1px">'+t.slice(i,i+q.length)+'</mark>'+t.slice(i+q.length);}
+function esc(v){
+  return String(v ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+function display(v){return (v===undefined||v===null||v==='')?'não informado':v;}
+function displayBool(v){if(v===true)return'Sim';if(v===false)return'Não';return'não informado';}
+function initials(n){return String(n||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || 'NI';}
+function hl(t,q){if(!q||!t)return esc(t||'');const raw=String(t);const i=raw.toLowerCase().indexOf(q.toLowerCase());if(i<0)return esc(raw);return esc(raw.slice(0,i))+'<mark style="background:#fef08a;border-radius:2px;padding:0 1px">'+esc(raw.slice(i,i+q.length))+'</mark>'+esc(raw.slice(i+q.length));}
 function chipColor(sit){if(!sit)return'chip-gray';if(sit.includes('descumprido'))return'chip-red';if(sit.includes('cumprido')&&!sit.includes('em'))return'chip-green';return'chip-amber';}
+function leadChipColor(tipo){if(tipo==='lead_quente')return'chip-red';if(tipo==='lead_acompanhamento')return'chip-blue';if(tipo==='sem_oportunidade')return'chip-gray';return'chip-gray';}
+function leadLabel(tipo){if(tipo==='lead_quente')return'lead_quente';if(tipo==='lead_acompanhamento')return'lead_acompanhamento';if(tipo==='sem_oportunidade')return'sem_oportunidade';return'não informado';}
 function scoreColor(n){if(n==='Alta')return'#dc2626';if(n==='Média')return'#d97706';return'#16a34a';}
-function deficitClass(d,exig){if(!exig||exig===0)return'deficit-low';const r=d/exig;if(r>0.5)return'deficit-high';if(r>0.2)return'deficit-mid';return'deficit-low';}
-function fmtNum(n){return (n&&n>0)?n.toLocaleString('pt-BR'):'—';}
+function deficitClass(d,exig){if(d===null||d===undefined)return'deficit-low';if(!exig||exig===0)return d>0?'deficit-mid':'deficit-low';const r=d/exig;if(r>0.5)return'deficit-high';if(r>0.2)return'deficit-mid';return'deficit-low';}
+function fmtNum(n){return (n===undefined||n===null||n==='')?'não informado':Number(n).toLocaleString('pt-BR');}
 
 function toast(msg){
   const t=document.createElement('div');t.className='toast';
@@ -1026,7 +1057,7 @@ function updateKPIs(){
   const alta=empresas.filter(e=>e.oport.score>=7).length;
   document.getElementById('kpi-alta').textContent=alta;
   document.getElementById('kpi-alta-d').textContent=alta+' empresas urgentes';
-  const def=empresas.reduce((a,e)=>a+e.deficit,0);
+  const def=empresas.reduce((a,e)=>a+(typeof e.deficit === 'number' ? e.deficit : 0),0);
   document.getElementById('kpi-deficit').textContent=def;
   document.getElementById('kpi-deficit-d').textContent=def+' PCDs necessários';
   document.getElementById('kpi-pdfs').textContent=pdfCount;
@@ -1064,7 +1095,7 @@ function aplicarFiltros() {
     const orgao = (e.orgao || '').toLowerCase();
 
     // Só bloqueia empresas abaixo de 100 quando houver dado real de funcionários.
-    if (e.func > 0 && e.func < 100) return false;
+    if (typeof e.func === 'number' && e.func > 0 && e.func < 100) return false;
 
     if (
       q &&
@@ -1084,8 +1115,8 @@ function aplicarFiltros() {
 
   filtered.sort((a, b) => {
     if (ord === 'score') return b.oport.score - a.oport.score;
-    if (ord === 'deficit') return b.deficit - a.deficit;
-    if (ord === 'func') return b.func - a.func;
+    if (ord === 'deficit') return (b.deficit ?? -1) - (a.deficit ?? -1);
+    if (ord === 'func') return (b.func ?? -1) - (a.func ?? -1);
     return a.nome.localeCompare(b.nome);
   });
 
@@ -1168,12 +1199,16 @@ function renderTable(q=''){
           <div class="avatar">${ini}</div>
           <div>
             <div class="company-name-cell">${hl(e.nome,q)}</div>
-            <div class="company-meta-cell">${hl(e.cidade,q)} · ${e.estado}</div>
+            <div class="company-meta-cell" style="margin-top:3px;color:var(--soul-1);line-height:1.4">${esc(display(e.resumo_oportunidade))}</div>
+            <div class="company-meta-cell">${hl(e.cidade,q)} · ${esc(display(e.estado))}</div>
           </div>
         </div>
       </td>
-      <td><span class="chip chip-gray" style="font-size:11px">${e.setor}</span></td>
-      <td><span class="chip ${chipColor(e.sit)}" style="font-size:11px">${e.sit}</span></td>
+      <td><span class="chip chip-gray" style="font-size:11px">${esc(display(e.setor))}</span></td>
+      <td>
+        <span class="chip ${chipColor(e.sit)}" style="font-size:11px">${esc(display(e.sit))}</span>
+        <span class="chip ${leadChipColor(e.tipo_lead)}" style="font-size:11px;margin-top:4px">${leadLabel(e.tipo_lead)}</span>
+      </td>
       <td class="num-col">${fmtNum(e.func)}</td>
       <td>
         <div class="score-cell">
@@ -1181,9 +1216,9 @@ function renderTable(q=''){
           <span class="score-num" style="color:${sc}">${e.oport.score}/10</span>
         </div>
       </td>
-      <td><span class="deficit-badge ${dc}">${e.deficit}</span></td>
-      <td style="font-size:11px;color:var(--muted)">${e.orgao.split('—')[0].trim()}</td>
-      <td class="proc-col">${e.proc}</td>
+      <td><span class="deficit-badge ${dc}" style="width:auto;min-width:28px;padding:0 7px">${fmtNum(e.deficit)}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${esc(display(String(e.orgao||'').split('—')[0].trim()))}</td>
+      <td class="proc-col">${esc(display(e.proc))}</td>
       <td>
         <div class="action-cell" onclick="event.stopPropagation()">
           <button class="icon-btn" title="Ver & baixar ficha PDF" onclick="abrirPDF('${e.id}')">
@@ -1201,7 +1236,7 @@ function renderTable(q=''){
     <thead><tr>
       <th onclick="sortBy('nome')">Empresa <span class="sort-icon">↕</span></th>
       <th>Setor</th>
-      <th>Situação</th>
+      <th>Situação / Lead</th>
       <th onclick="sortBy('func')">Funcionários <span class="sort-icon">↕</span></th>
       <th onclick="sortBy('score')">Score GCP <span class="sort-icon">↕</span></th>
       <th onclick="sortBy('deficit')">Déficit <span class="sort-icon">↕</span></th>
@@ -1233,32 +1268,30 @@ function expandedRow(e){
       <div class="expanded-inner">
         <div>
           <div class="exp-section-title">Dados do procedimento</div>
-          <div class="exp-field"><div class="exp-label">CNPJ</div><div class="exp-value mono">${e.cnpj}</div></div>
-          <div class="exp-field"><div class="exp-label">Procedimento</div><div class="exp-value mono">${e.proc}</div></div>
-          <div class="exp-field"><div class="exp-label">Data de abertura</div><div class="exp-value">${e.data}</div></div>
-          <div class="exp-field"><div class="exp-label">Órgão</div><div class="exp-value">${e.orgao}</div></div>
-          ${e.prazo?`<div class="exp-field"><div class="exp-label">Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber)">${e.prazo}</div></div>`:''}
-          ${e.responsavel?`<div class="exp-field"><div class="exp-label">Responsável pela empresa</div><div class="exp-value">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</div></div>`:''}
-          ${e.advogado?`<div class="exp-field"><div class="exp-label">Advogado</div><div class="exp-value">${e.advogado}</div></div>`:''}
-        <div>
-          <div class="exp-section-title">Contato</div>
-          <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${e.end||'—'}</div></div>
-          <div class="exp-field"><div class="exp-label">E-mail</div><div class="exp-value link">${e.email||'—'}</div></div>
-          <div class="exp-field"><div class="exp-label">Telefone</div><div class="exp-value">${e.tel||'—'}</div></div>
-          ${e.responsavel?`<div class="exp-field"><div class="exp-label">Responsável</div><div class="exp-value" style="font-weight:500">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</div></div>`:''}
-          ${e.advogado?`<div class="exp-field"><div class="exp-label">Advogado</div><div class="exp-value">${e.advogado}</div></div>`:''}
-          ${e.prazo?`<div class="exp-field"><div class="exp-label" style="color:var(--amber)">⏱ Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber);font-weight:500">${e.prazo}</div></div>`:''}
+          <div class="exp-field"><div class="exp-label">CNPJ</div><div class="exp-value mono">${esc(display(e.cnpj))}</div></div>
+          <div class="exp-field"><div class="exp-label">Procedimento</div><div class="exp-value mono">${esc(display(e.proc))}</div></div>
+          <div class="exp-field"><div class="exp-label">Data de abertura</div><div class="exp-value">${esc(display(e.data))}</div></div>
+          <div class="exp-field"><div class="exp-label">Órgão</div><div class="exp-value">${esc(display(e.orgao))}</div></div>
+          <div class="exp-field"><div class="exp-label">Prazo de cumprimento</div><div class="exp-value" style="color:var(--amber)">${esc(display(e.prazo))}</div></div>
+          <div class="exp-field"><div class="exp-label">Risco de multa</div><div class="exp-value">${displayBool(e.risco_multa)}</div></div>
         </div>
         <div>
-          <div class="exp-section-title">Análise Gemini</div>
+          <div class="exp-section-title">Contato</div>
+          <div class="exp-field"><div class="exp-label">Endereço</div><div class="exp-value">${esc(display(e.end))}</div></div>
+          <div class="exp-field"><div class="exp-label">E-mail</div><div class="exp-value link">${esc(display(e.email))}</div></div>
+          <div class="exp-field"><div class="exp-label">Telefone</div><div class="exp-value">${esc(display(e.tel))}</div></div>
+          <div class="exp-field"><div class="exp-label">Déficit PcD</div><div class="exp-value mono">${fmtNum(e.deficit)}</div></div>
+        </div>
+        <div>
+          <div class="exp-section-title">Prospecção consultiva</div>
+          <div class="exp-field"><div class="exp-label">Tipo de lead</div><div class="exp-value"><span class="chip ${leadChipColor(e.tipo_lead)}">${leadLabel(e.tipo_lead)}</span></div></div>
+          <div class="exp-field"><div class="exp-label">Resumo da oportunidade</div><div class="exp-value" style="color:var(--soul-1);font-size:12px;line-height:1.6">${esc(display(e.resumo_oportunidade))}</div></div>
+          <div class="exp-field"><div class="exp-label">Motivo do lead</div><div class="exp-value" style="font-size:12px;line-height:1.6">${esc(display(e.motivo_lead))}</div></div>
+          <div class="exp-field"><div class="exp-label">Evidência textual do PDF</div><div class="exp-value" style="font-size:12px;line-height:1.6;font-style:italic;color:var(--ink3)">${esc(display(e.evidencia_textual))}</div></div>
           <div class="exp-field"><div class="exp-label">Score de oportunidade</div>
             <div class="exp-value" style="color:${scoreColor(e.oport.nivel)};font-family:'DM Mono',monospace;font-size:16px;font-weight:500">${e.oport.score}/10 — ${e.oport.nivel}</div>
           </div>
-          <div class="exp-field"><div class="exp-label">Recomendação</div><div class="exp-value" style="color:var(--soul-1);font-size:12px;line-height:1.6">${e.oport.rec}</div></div>
-          <div class="exp-field"><div class="exp-label">Perfis sugeridos</div>
-            <div class="perfis-wrap">${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:11px">${p}</span>`).join('')}</div>
-          </div>
-          ${e.pdfUrl?`<div class="exp-field" style="margin-top:10px"><div class="exp-label">Cloud Storage</div><div class="exp-value mono" style="font-size:10px;word-break:break-all;color:var(--green)">${e.pdfUrl}</div></div>`:''}
+          ${e.pdfUrl?`<div class="exp-field" style="margin-top:10px"><div class="exp-label">Cloud Storage</div><div class="exp-value mono" style="font-size:10px;word-break:break-all;color:var(--green)">${esc(e.pdfUrl)}</div></div>`:''}
         </div>
         <div class="exp-actions">
           <button class="btn btn-primary" onclick="abrirPDF('${e.id}')">
@@ -1302,14 +1335,19 @@ function abrirPDF(id){
       </div>
       <div class="pdf-logo-badge">SoulCode</div>
     </div>
-    <div class="pdf-title">${e.nome}</div>
-    <div class="pdf-subtitle">CNPJ ${e.cnpj} · ${e.setor} · ${e.cidade}/${e.estado}</div>
+    <div class="pdf-title">${esc(e.nome)}</div>
+    <div class="pdf-subtitle">CNPJ ${esc(display(e.cnpj))} · ${esc(display(e.setor))} · ${esc(display(e.cidade))}/${esc(display(e.estado))}</div>
+    <div style="margin-bottom:14px">
+      <span class="chip ${leadChipColor(e.tipo_lead)}">${leadLabel(e.tipo_lead)}</span>
+      <span class="chip ${chipColor(e.sit)}">${esc(display(e.sit))}</span>
+    </div>
+    <div style="font-size:13px;color:var(--soul-1);margin-bottom:14px;line-height:1.6">${esc(display(e.resumo_oportunidade))}</div>
     <div class="pdf-divider"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
       <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px">
-        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Situação</div>
-        <span class="chip ${chipColor(e.sit)}">${e.sit}</span>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Tipo de lead</div>
+        <span class="chip ${leadChipColor(e.tipo_lead)}">${leadLabel(e.tipo_lead)}</span>
       </div>
       <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px">
         <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Score de Oportunidade</div>
@@ -1320,53 +1358,44 @@ function abrirPDF(id){
     <div class="pdf-section">
       <div class="pdf-sec-title">Dados do procedimento</div>
       <div class="pdf-grid">
-        <div class="pdf-field"><label>Número</label><span style="font-family:'DM Mono',monospace;font-size:12px">${e.proc}</span></div>
-        <div class="pdf-field"><label>Data de abertura</label><span>${e.data}</span></div>
-        <div class="pdf-field"><label>Órgão MPT</label><span>${e.orgao}</span></div>
-        <div class="pdf-field"><label>Região</label><span>${e.regiao}</span></div>
-        ${e.prazo?`<div class="pdf-field" style="grid-column:1/-1"><label>⏱ Prazo para cumprimento</label><span style="color:#d97706;font-weight:600">${e.prazo}</span></div>`:''}
+        <div class="pdf-field"><label>Número</label><span style="font-family:'DM Mono',monospace;font-size:12px">${esc(display(e.proc))}</span></div>
+        <div class="pdf-field"><label>Data de abertura</label><span>${esc(display(e.data))}</span></div>
+        <div class="pdf-field"><label>Órgão MPT</label><span>${esc(display(e.orgao))}</span></div>
+        <div class="pdf-field"><label>Região</label><span>${esc(display(e.regiao))}</span></div>
+        <div class="pdf-field"><label>Prazo de cumprimento</label><span style="color:#d97706;font-weight:600">${esc(display(e.prazo))}</span></div>
+        <div class="pdf-field"><label>Risco de multa</label><span>${displayBool(e.risco_multa)}</span></div>
       </div>
     </div>
 
     <div class="pdf-section">
-      <div class="pdf-sec-title">Infração — Lei 8.213/91, art. 93</div>
-      <div class="pdf-infraction">
-        ${e.motivo || `Empresa com <strong>${e.func.toLocaleString('pt-BR')} funcionários</strong> deveria manter <strong>${e.exig} PCD(s)</strong> em seu quadro funcional conforme a cota legal. Foram identificados apenas <strong>${e.cumpr}</strong>, configurando déficit de <strong>${e.deficit} vaga(s)</strong>.`}
-      </div>
+      <div class="pdf-sec-title">Prospecção consultiva</div>
+      <div class="pdf-opp"><strong>Resumo:</strong> ${esc(display(e.resumo_oportunidade))}</div>
+      <div class="pdf-opp" style="background:var(--line2);color:var(--ink3);margin-top:8px"><strong>Motivo:</strong> ${esc(display(e.motivo_lead))}</div>
+      <div class="pdf-opp" style="background:var(--white);border:1px solid var(--line);color:var(--ink3);margin-top:8px"><strong>Evidência textual:</strong> <em>${esc(display(e.evidencia_textual))}</em></div>
     </div>
 
     <div class="pdf-section">
-      <div class="pdf-sec-title">Cota PCD — Lei de cotas</div>
+      <div class="pdf-sec-title">Cota PCD — dados documentais</div>
       <div class="pdf-cota">
         <div class="pdf-cota-box"><div class="pv">${fmtNum(e.func)}</div><div class="pl">Funcionários</div></div>
         <div class="pdf-cota-box"><div class="pv">${fmtNum(e.exig)}</div><div class="pl">Cota exigida</div></div>
-        <div class="pdf-cota-box ${e.deficit>0?'alert':''}"><div class="pv" style="${e.deficit>0?'color:var(--red)':''}">${fmtNum(e.deficit)}</div><div class="pl">Déficit atual</div></div>
+        <div class="pdf-cota-box ${e.deficit>0?'alert':''}"><div class="pv" style="${e.deficit>0?'color:var(--red)':''}">${fmtNum(e.deficit)}</div><div class="pl">Déficit PCD</div></div>
       </div>
     </div>
 
     <div class="pdf-section">
       <div class="pdf-sec-title">Dados de contato</div>
       <div class="pdf-grid">
-        <div class="pdf-field" style="grid-column:1/-1"><label>Endereço</label><span>${e.end}</span></div>
-        <div class="pdf-field"><label>E-mail</label><span style="color:var(--soul-1)">${e.email||'—'}</span></div>
-        <div class="pdf-field"><label>Telefone</label><span>${e.tel||'—'}</span></div>
-        ${e.responsavel?`<div class="pdf-field"><label>Responsável</label><span style="font-weight:600">${e.responsavel}${e.responsavel_cargo?' — '+e.responsavel_cargo:''}</span></div>`:''}
-        ${e.advogado?`<div class="pdf-field"><label>Advogado</label><span>${e.advogado}</span></div>`:''}
-      </div>
-    </div>
-
-    <div class="pdf-section">
-      <div class="pdf-sec-title">Análise de oportunidade — Vertex AI Gemini</div>
-      <div class="pdf-opp">${e.oport.rec}</div>
-      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">
-        ${e.perfis.map(p=>`<span class="chip chip-blue" style="font-size:11px">${p}</span>`).join('')}
+        <div class="pdf-field" style="grid-column:1/-1"><label>Endereço</label><span>${esc(display(e.end))}</span></div>
+        <div class="pdf-field"><label>E-mail</label><span style="color:var(--soul-1)">${esc(display(e.email))}</span></div>
+        <div class="pdf-field"><label>Telefone</label><span>${esc(display(e.tel))}</span></div>
       </div>
     </div>
 
     <div class="pdf-footer">
       <div>
         <div class="pdf-footer-brand">SoulCode — Fábrica de Agentes</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">Agente TAC·PCD #001 · Uso interno · Prospecção de candidatos PCD</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Agente TAC·PCD #001 · Uso interno · Prospecção consultiva PCD</div>
       </div>
       <div class="pdf-footer-date">Gerado em ${gerado}</div>
     </div>
@@ -1454,12 +1483,12 @@ function downloadPDF(){
   // infração
   doc.setFont('helvetica','bold');doc.text('INFRAÇÃO — LEI 8.213/91, ART. 93',lm,y);y+=5;
   doc.setFont('helvetica','normal');doc.setTextColor(120);
-  const infTxt=`Empresa com ${e.func} funcionários deveria ter ${e.exig} PCD(s). Foram identificados ${e.cumpr}, déficit de ${e.deficit} vaga(s).`;
+  const infTxt=`Resumo da oportunidade: ${display(e.resumo_oportunidade)}. Motivo do lead: ${display(e.motivo_lead)}. Evidência textual: ${display(e.evidencia_textual)}.`;
   const lines=doc.splitTextToSize(infTxt, lw);doc.text(lines,lm,y);y+=lines.length*5+6;
   // cota
   doc.setTextColor(10);doc.setFont('helvetica','bold');doc.text('COTA PCD',lm,y);y+=5;
   doc.setFont('helvetica','normal');
-  doc.text(`Funcionários: ${e.func}   |   Exigidos: ${e.exig}   |   Déficit: ${e.deficit}`,lm,y);y+=10;
+  doc.text(`Funcionários: ${display(e.func)}   |   Exigidos: ${display(e.exig)}   |   Déficit: ${display(e.deficit)}`,lm,y);y+=10;
   // contato
   doc.setFont('helvetica','bold');doc.text('CONTATO',lm,y);y+=5;
   doc.setFont('helvetica','normal');
@@ -1485,7 +1514,7 @@ function downloadPDF(){
 // ── COPIAR ────────────────────────────────────────────────────────────
 function copiarContato(id){
   const e=empresas.find(x=>x.id===id);if(!e)return;
-  const txt=`${e.nome}\nCNPJ: ${e.cnpj}\nEndereço: ${e.end}\nE-mail: ${e.email}\nTelefone: ${e.tel}\nProcedimento: ${e.proc}\nDéficit PCD: ${e.deficit} vaga(s)`;
+  const txt=`${e.nome}\nCNPJ: ${display(e.cnpj)}\nEndereço: ${display(e.end)}\nE-mail: ${display(e.email)}\nTelefone: ${display(e.tel)}\nProcedimento: ${display(e.proc)}\nTipo de lead: ${leadLabel(e.tipo_lead)}\nResumo: ${display(e.resumo_oportunidade)}\nDéficit PCD: ${display(e.deficit)}`;
   navigator.clipboard.writeText(txt).catch(()=>{});
   toast('Contato copiado para a área de transferência');
 }
@@ -1506,6 +1535,12 @@ function exportarCSV() {
     ['Cota exigida','exig'],
     ['Cota cumprida','cumpr'],
     ['Déficit','deficit'],
+    ['Tipo lead','tipo_lead'],
+    ['Resumo oportunidade','resumo_oportunidade'],
+    ['Motivo lead','motivo_lead'],
+    ['Evidência textual','evidencia_textual'],
+    ['Prazo cumprimento','prazo'],
+    ['Risco multa','risco_multa'],
     ['Score','score'],
     ['Situação','sit'],
     ['Procedimento','proc'],
@@ -1559,7 +1594,13 @@ function exportarExcel() {
     Funcionários: e.func,
     'Cota exigida': e.exig,
     'Cota cumprida': e.cumpr,
-    Déficit: e.deficit,
+    Déficit: display(e.deficit),
+    tipo_lead: leadLabel(e.tipo_lead),
+    resumo_oportunidade: display(e.resumo_oportunidade),
+    motivo_lead: display(e.motivo_lead),
+    evidencia_textual: display(e.evidencia_textual),
+    prazo_cumprimento: display(e.prazo),
+    risco_multa: displayBool(e.risco_multa),
     Score: e.oport.score,
     Situação: e.sit,
     Procedimento: e.proc,
@@ -1587,9 +1628,9 @@ function gerarRelatorio(){
     const rows=filtered.map(e=>`
       <tr>
         <td>${e.nome}</td><td>${e.cnpj}</td><td>${e.setor}</td><td>${e.regiao}</td>
-        <td>${e.orgao}</td><td>${e.func}</td><td>${e.exig}</td><td>${e.deficit}</td>
+        <td>${e.orgao}</td><td>${fmtNum(e.func)}</td><td>${fmtNum(e.exig)}</td><td>${fmtNum(e.deficit)}</td>
         <td style="color:${scoreColor(e.oport.nivel)};font-weight:700">${e.oport.score}/10</td>
-        <td>${e.sit}</td><td>${e.email}</td><td>${e.tel}</td><td>${e.proc}</td>
+        <td>${e.sit}</td><td>${leadLabel(e.tipo_lead)}</td><td>${display(e.resumo_oportunidade)}</td><td>${display(e.prazo)}</td><td>${displayBool(e.risco_multa)}</td><td>${e.email}</td><td>${e.tel}</td><td>${e.proc}</td>
       </tr>`).join('');
     w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans&family=DM+Mono&display=swap" rel="stylesheet">
@@ -1607,7 +1648,7 @@ function gerarRelatorio(){
       <body>
       <h1>Relatório TAC PCD — SoulCode Agente #001</h1>
       <p class="sub">Gerado em ${new Date().toLocaleString('pt-BR')} · ${filtered.length} empresas · 7 regiões MPT · filtro: 100+ funcionários</p>
-      <table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Setor</th><th>Região</th><th>Órgão</th><th>Func.</th><th>Exig.</th><th>Déficit</th><th>Score</th><th>Situação</th><th>E-mail</th><th>Telefone</th><th>Procedimento</th></tr></thead>
+      <table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Setor</th><th>Região</th><th>Órgão</th><th>Func.</th><th>Exig.</th><th>Déficit</th><th>Score</th><th>Situação</th><th>Tipo lead</th><th>Resumo</th><th>Prazo</th><th>Risco multa</th><th>E-mail</th><th>Telefone</th><th>Procedimento</th></tr></thead>
       <tbody>${rows}</tbody></table>
       <div class="footer"><span>SoulCode — Fábrica de Agentes · Uso interno</span><span>gs://tac-pcd-relatorios/relatorios/relatorio_${Date.now()}.html</span></div>
       <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1000)}<\/script>

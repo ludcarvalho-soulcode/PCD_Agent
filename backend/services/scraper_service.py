@@ -1,5 +1,5 @@
-"""
-Scraper Service v6 — Sem filtro de data ou tamanho
+﻿"""
+Scraper Service v6 - Sem filtro de data ou tamanho
 Analisa TACs do MPT e retorna documentos PCD com oportunidade real:
 lead_quente ou lead_acompanhamento.
 """
@@ -9,7 +9,7 @@ import io
 import logging
 import platform
 import re
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from playwright.async_api import async_playwright
 import pdfplumber
@@ -21,6 +21,8 @@ from services.vertex_service import (
     buscar_dados_cnpj,
     _eh_documento_tac_pcd,
 )
+
+from services.contact_scraper_service import buscar_contatos_empresa
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +112,7 @@ def _extrair_texto_pdf(pdf_bytes: bytes) -> str:
 def _extrair_prazo_local(texto: str) -> str:
     t = texto.lower()
 
-    m = re.search(r"prazo para o cumprimento desta obrigação[:\s]+([^\n\.]{5,60})", t)
+    m = re.search(r"prazo para o cumprimento desta obrigacao[:\s]+([^\n\.]{5,60})", t)
     if m:
         return m.group(1).strip().title()
 
@@ -139,14 +141,14 @@ def _classificar_situacao_local(texto: str) -> str:
     descumprimento_explicito = [
         "descumprimento constatado",
         "inadimplemento",
-        "obrigação violada",
         "obrigacao violada",
-        "execução",
+        "obrigacao violada",
+        "execucao",
         "execucao",
         "multa aplicada",
         "multa cobrada",
         "descumpriu",
-        "não cumpriu",
+        "nao cumpriu",
         "nao cumpriu",
     ]
 
@@ -160,7 +162,7 @@ def _classificar_situacao_local(texto: str) -> str:
 
 
 async def _esperar_tabela_carregar(page, log: Callable) -> None:
-    await log("   ⏳ Aguardando linhas reais da tabela...")
+    await log("   Aguardando linhas reais da tabela...")
 
     try:
         await page.wait_for_function(
@@ -178,13 +180,12 @@ async def _esperar_tabela_carregar(page, log: Callable) -> None:
             """,
             timeout=60_000,
         )
-        await log("   ✅ Tabela carregada com registros reais.")
+        await log("   Tabela carregada com registros reais.")
     except Exception as wait_err:
-        await log(f"   ⚠️ Timeout esperando linhas reais da tabela: {wait_err}")
+        await log(f"   Timeout esperando linhas reais da tabela: {wait_err}")
         await asyncio.sleep(8)
 
     await asyncio.sleep(2)
-
 
 async def _raspar_todas_paginas(
     page,
@@ -203,7 +204,7 @@ async def _raspar_todas_paginas(
             await page.wait_for_selector("form, table, main, #main-container, body", timeout=15_000)
             await asyncio.sleep(3)
 
-            await log("   ⚡ Clicando em Filtrar para carregar processos...")
+            await log("   Clicando em Filtrar para carregar processos...")
 
             clicou = False
             for sel in ["button:text('Filtrar')", "input[value*='iltrar']", "a:text('Filtrar')"]:
@@ -217,34 +218,34 @@ async def _raspar_todas_paginas(
                     continue
 
             if not clicou:
-                await log("   ⚠️ Botão Filtrar não encontrado. Tentando ler tabela atual.")
+                await log("   Botao Filtrar nao encontrado. Tentando ler tabela atual.")
 
             await _esperar_tabela_carregar(page, log)
 
             try:
                 await page.screenshot(path=f"screenshot_{fonte['id']}.png", full_page=True)
-                await log(f"   📸 Screenshot salvo: screenshot_{fonte['id']}.png")
+                await log(f"   Screenshot salvo: screenshot_{fonte['id']}.png")
             except Exception as ss_err:
-                await log(f"   ⚠️ Não conseguiu tirar screenshot: {ss_err}")
+                await log(f"   Nao conseguiu tirar screenshot: {ss_err}")
 
             break
 
         except Exception as e:
             if tentativa == 2:
-                await log(f"❌ Todas as 3 tentativas falharam para {fonte['url']}: {e}")
+                await log(f"Todas as 3 tentativas falharam para {fonte['url']}: {e}")
                 raise
 
-            await log(f"   Tentativa {tentativa + 1} falhou — aguardando...")
+            await log(f"   Tentativa {tentativa + 1} falhou - aguardando...")
             await asyncio.sleep(5 * (tentativa + 1))
 
     for num_pag in range(1, max_paginas + 1):
         linhas = await page.query_selector_all("table tbody tr")
 
         if not linhas:
-            await log(f"   Página {num_pag}: sem linhas válidas na tabela")
+            await log(f"   Pagina {num_pag}: sem linhas validas na tabela")
             break
 
-        await log(f"   Página {num_pag}/{max_paginas}: {len(linhas)} linha(s) detectada(s). Processando...")
+        await log(f"   Pagina {num_pag}/{max_paginas}: {len(linhas)} linha(s) detectada(s). Processando...")
 
         qtd_registros_pagina = 0
 
@@ -295,15 +296,15 @@ async def _raspar_todas_paginas(
                 qtd_registros_pagina += 1
 
             except Exception as e:
-                await log(f"   ⚠️ Erro ao processar linha: {e}")
+                await log(f"   Erro ao processar linha: {e}")
                 continue
 
-        await log(f"   Página {num_pag}: {qtd_registros_pagina} registro(s) válido(s)")
+        await log(f"   Pagina {num_pag}: {qtd_registros_pagina} registro(s) valido(s)")
 
         if num_pag < max_paginas:
             try:
                 prox = await page.query_selector(
-                    "a:text('Próximo'), .paginate_button.next:not(.disabled), li.next:not(.disabled) a"
+                    "a:text('Proximo'), a:text('Próximo'), .paginate_button.next:not(.disabled), li.next:not(.disabled) a"
                 )
 
                 if prox:
@@ -325,6 +326,9 @@ async def raspar_tacs_pcd(
     orgao_id: Optional[str] = None,
     paginas: int = 10,
     log_callback: Optional[Callable] = None,
+    validar_gemini_sem_regex: bool = False,
+    buscar_contatos: bool = False,
+    persist_callback: Optional[Callable[[dict], Any]] = None,
 ) -> list[dict]:
 
     async def _log(msg: str):
@@ -334,6 +338,23 @@ async def raspar_tacs_pcd(
                 await log_callback(msg)
             else:
                 log_callback(msg)
+
+    async def _persistir_empresa(empresa: dict) -> None:
+        if not persist_callback:
+            return
+        try:
+            if asyncio.iscoroutinefunction(persist_callback):
+                empresa_id = await persist_callback(empresa)
+            else:
+                empresa_id = persist_callback(empresa)
+            if empresa_id:
+                empresa["id"] = empresa_id
+                await _log(
+                    f"   Salvo incrementalmente: {empresa.get('razao_social', '?')} "
+                    f"({empresa.get('cnpj') or 'sem CNPJ'})"
+                )
+        except Exception as e:
+            await _log(f"   Falha ao salvar incrementalmente: {e}")
 
     orgao_recebido = orgao_id or orgao
     orgao_normalizado = _normalizar_orgao(orgao_recebido)
@@ -349,7 +370,7 @@ async def raspar_tacs_pcd(
     await _log(f"fontes selecionadas = {[f['id'] for f in fontes]}")
 
     await _log(
-        f"Iniciando scraping v6 — {len(fontes)} portal(is) | "
+        f"Iniciando scraping v6 - {len(fontes)} portal(is) | "
         f"SEM filtro de data/tamanho | PCD com oportunidade real"
     )
 
@@ -428,14 +449,14 @@ async def raspar_tacs_pcd(
                                 texto_pdf = _extrair_texto_pdf(pdf_bytes)
 
                         except Exception as e:
-                            await _log(f"   PDF não baixado: {e}")
+                            await _log(f"   PDF nao baixado: {e}")
 
                     if not texto_pdf:
-                        await _log(f"   PDF sem texto extraído: {reg['procedimento']}")
+                        await _log(f"   PDF sem texto extraido: {reg['procedimento']}")
                         continue
 
                     await _log(
-                        f"   Texto extraído ({reg['procedimento']}): "
+                        f"   Texto extraido ({reg['procedimento']}): "
                         f"{texto_pdf[:500].replace(chr(10), ' ')}"
                     )
 
@@ -443,9 +464,11 @@ async def raspar_tacs_pcd(
 
                     if not eh_pcd_regex:
                         await _log(
-                            f"⚠️ Sem evidência regex de PCD. "
-                            f"Enviando para validação Gemini: {reg['procedimento']}"
+                            f"Sem evidencia regex de PCD. "
+                            f"Gemini ignorado no modo padrao: {reg['procedimento']}"
                         )
+                        if not validar_gemini_sem_regex:
+                            continue
 
                     try:
                         await _log(f"   Chamando Gemini para {reg['procedimento']}...")
@@ -453,10 +476,6 @@ async def raspar_tacs_pcd(
                         empresas_gemini = await extrair_tacs_do_html(
                             texto_pdf,
                             orgao=fonte["orgao"],
-                        )
-
-                        await _log(
-                            f"   Gemini retornou para {reg['procedimento']}: {empresas_gemini}"
                         )
 
                     except Exception as e:
@@ -472,54 +491,70 @@ async def raspar_tacs_pcd(
 
                     if not isinstance(empresas_gemini, list):
                         await _log(
-                            f"   Aviso: formato retornado pelo Gemini inválido "
+                            f"   Aviso: formato retornado pelo Gemini invalido "
                             f"para {reg['procedimento']}"
                         )
                         continue
+
+                    resumo_gemini = []
+                    for item in empresas_gemini:
+                        if isinstance(item, list) and item:
+                            item = item[0]
+                        if isinstance(item, dict):
+                            resumo_gemini.append(
+                                f"{item.get('razao_social') or '?'} | "
+                                f"{item.get('cnpj') or 'sem CNPJ'} | "
+                                f"{item.get('situacao') or 'sem status'}"
+                            )
+
+                    await _log(
+                        f"   Gemini retornou {len(resumo_gemini)} item(ns) para "
+                        f"{reg['procedimento']}: {resumo_gemini[:5]}"
+                    )
 
                     for empresa in empresas_gemini:
                         if isinstance(empresa, list) and empresa:
                             empresa = empresa[0]
 
                         if not isinstance(empresa, dict):
-                            await _log(f"   Item inválido do Gemini: {empresa}")
+                            await _log(f"   Item invalido do Gemini: {empresa}")
                             continue
 
                         motivo_baixo = (empresa.get("motivo") or "").lower()
 
                         bloqueios_nao_pcd = [
-                            "não menciona a cota pcd",
                             "nao menciona a cota pcd",
-                            "não menciona especificamente a cota pcd",
+                            "nao menciona a cota pcd",
                             "nao menciona especificamente a cota pcd",
-                            "não menciona a lei 8.213",
+                            "nao menciona especificamente a cota pcd",
                             "nao menciona a lei 8.213",
-                            "não é pcd",
-                            "nao é pcd",
-                            "não se trata de pcd",
+                            "nao menciona a lei 8.213",
+                            "nao e pcd",
+                            "nao e pcd",
                             "nao se trata de pcd",
-                            "não de cota pcd",
+                            "nao se trata de pcd",
                             "nao de cota pcd",
-                            "não trata de cota pcd",
+                            "nao de cota pcd",
                             "nao trata de cota pcd",
-                            "não trata de pcd",
+                            "nao trata de cota pcd",
+                            "nao trata de pcd",
                             "nao trata de pcd",
                             "trata de liberdade sindical",
-                            "trata de segurança",
+                            "trata de seguranca",
                             "trata de jornada",
                             "trata de aprendizagem",
                         ]
 
                         if any(b in motivo_baixo for b in bloqueios_nao_pcd):
                             await _log(
-                                f"   Ignorado pelo motivo não-PCD: "
+                                f"   Ignorado pelo motivo nao-PCD: "
                                 f"{empresa.get('razao_social', '?')}"
                             )
                             continue
 
                         if not eh_pcd_regex:
                             await _log(
-                                "Ignorado sem evidência explícita de PCD: "
+                                "Ignorado sem evidencia explicita de PCD: "
                                 f"{empresa.get('razao_social', '?')}"
                             )
                             continue
@@ -584,18 +619,39 @@ async def raspar_tacs_pcd(
                                     empresa["uf"] = dados_cnpj.get("uf", "")
 
                                     await _log(
-                                        f"   Receita: {dados_cnpj.get('porte', '')} — "
+                                        f"   Receita: {dados_cnpj.get('porte', '')} - "
                                         f"{dados_cnpj.get('municipio', '')}/{dados_cnpj.get('uf', '')}"
                                     )
 
                             except Exception:
                                 pass
 
-                        if not empresa.get("email") or not empresa.get("telefone"):
+                        # Busca contato REAL via web apenas quando habilitado.
+                        if buscar_contatos and (not empresa.get("email") or not empresa.get("telefone")):
                             try:
-                                empresa = await enriquecer_empresa(empresa)
-                            except Exception:
-                                pass
+                                contatos = await buscar_contatos_empresa(
+                                    razao_social=empresa.get("razao_social", ""),
+                                    cnpj=empresa.get("cnpj", ""),
+                                    site_conhecido=empresa.get("site_oficial"),
+                                )
+
+                                if contatos.get("email") and not empresa.get("email"):
+                                    empresa["email"] = contatos["email"]
+
+                                if contatos.get("telefone") and not empresa.get("telefone"):
+                                    empresa["telefone"] = contatos["telefone"]
+
+                                if contatos.get("fonte_contato"):
+                                    empresa["fonte_contato"] = contatos["fonte_contato"]
+
+                                await _log(
+                                    f"   Contato real: email={empresa.get('email') or '-'} "
+                                    f"tel={empresa.get('telefone') or '-'} "
+                                    f"({contatos.get('fonte_contato') or 'nao encontrado'})"
+                                )
+
+                            except Exception as e:
+                                await _log(f"   Busca de contato falhou: {e}")
 
                         try:
                             empresa["oportunidade"] = await classificar_oportunidade(empresa)
@@ -604,7 +660,7 @@ async def raspar_tacs_pcd(
                                 "score_oportunidade": 1,
                                 "nivel": "Baixa",
                                 "deficit_pcd": empresa.get("deficit_pcd"),
-                                "recomendacao": "Sem oportunidade comercial explícita no TAC.",
+                                "recomendacao": "Sem oportunidade comercial explicita no TAC.",
                                 "perfis_sugeridos": [],
                                 "tipo_lead": empresa.get("tipo_lead") or "sem_oportunidade",
                                 "motivo_lead": empresa.get("motivo_lead"),
@@ -619,16 +675,17 @@ async def raspar_tacs_pcd(
                         if tipo_lead not in ["lead_quente", "lead_acompanhamento"]:
                             await _log(
                                 f"   Ignorado sem oportunidade comercial: "
-                                f"{empresa.get('razao_social', '?')} — "
+                                f"{empresa.get('razao_social', '?')} - "
                                 f"{empresa.get('situacao')}"
                             )
                             continue
 
                         todas_empresas.append(empresa)
+                        await _persistir_empresa(empresa)
 
                         await _log(
-                            f"   OK {empresa.get('razao_social', '?')} — "
-                            f"{empresa.get('situacao')} — {tipo_lead} — score "
+                            f"   OK {empresa.get('razao_social', '?')} - "
+                            f"{empresa.get('situacao')} - {tipo_lead} - score "
                             f"{empresa['oportunidade']['score_oportunidade']}/10"
                         )
 
@@ -638,12 +695,19 @@ async def raspar_tacs_pcd(
                 await _log(f"   Erro no portal {fonte['orgao']}: {e}")
 
             finally:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
-        await browser.close()
+        try:
+            await context.close()
+        finally:
+            await browser.close()
 
     await _log(
-        f"\nConcluído — {len(todas_empresas)} TAC(s) PCD com oportunidade real encontrado(s)."
+        f"\nConcluido - {len(todas_empresas)} TAC(s) PCD com oportunidade real encontrado(s)."
     )
 
     return todas_empresas
+

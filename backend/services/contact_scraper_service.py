@@ -72,6 +72,15 @@ HEADERS_DDG = {
     "Accept": "application/json",
 }
 
+
+async def _fechar_playwright(*recursos) -> None:
+    for recurso in recursos:
+        if recurso:
+            try:
+                await recurso.close()
+            except Exception:
+                pass
+
 DDDS_VALIDOS = {
     "11", "12", "13", "14", "15", "16", "17", "18", "19",
     "21", "22", "24", "27", "28", "31", "32", "33", "34", "35", "37", "38",
@@ -229,6 +238,9 @@ async def _buscar_via_playwright_ddg(query: str, palavras_chave: list[str]) -> d
     resultados = {"emails": [], "telefones": [], "links": []}
 
     url = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}&kl=br-pt"
+    browser = None
+    context = None
+    page = None
 
     try:
         async with async_playwright() as pw:
@@ -267,12 +279,12 @@ async def _buscar_via_playwright_ddg(query: str, palavras_chave: list[str]) -> d
                 # Fallback: pega todo o innerText da página
                 itens = []
 
-            await browser.close()
-
             resultados["links"] = [item for item in itens if item.get("url")]
 
     except Exception as e:
         logger.warning(f"Playwright DDG erro: {e}")
+    finally:
+        await _fechar_playwright(page, context, browser)
 
     return resultados
 
@@ -285,6 +297,10 @@ async def _buscar_duckduckgo_resultados(query: str) -> list[dict]:
 async def _buscar_via_playwright_bing(query: str) -> list[dict]:
     """Fonte alternativa somente para descobrir o site oficial."""
     url = f"https://www.bing.com/search?q={urllib.parse.quote(query)}&setlang=pt-BR"
+    browser = None
+    context = None
+    page = None
+
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(
@@ -306,13 +322,14 @@ async def _buscar_via_playwright_bing(query: str) -> list[dict]:
                             snippet: s?.innerText || ''};
                 })
             """)
-            await browser.close()
             for item in itens:
                 item["url"] = _resolver_url_bing(item.get("url", ""))
             return [item for item in itens if item.get("url")]
     except Exception as e:
         logger.warning(f"Playwright Bing erro: {e}")
         return []
+    finally:
+        await _fechar_playwright(page, context, browser)
 
 
 async def _extrair_contatos_pagina(page, url: str) -> dict:
@@ -399,6 +416,10 @@ async def buscar_contatos_empresa(
         )
 
     if site_conhecido:
+        browser = None
+        context = None
+        page = None
+
         try:
             async with async_playwright() as pw:
                 browser = await pw.chromium.launch(
@@ -445,8 +466,6 @@ async def buscar_contatos_empresa(
                         if telefone not in telefones_encontrados:
                             telefones_encontrados.append(telefone)
 
-                await browser.close()
-
                 emails_validos = [
                     email for email in emails_encontrados
                     if _email_compativel_site(email, site_final, palavras_chave)
@@ -460,5 +479,7 @@ async def buscar_contatos_empresa(
 
         except Exception as e:
             logger.warning(f"Erro ao raspar site {site_conhecido}: {e}")
+        finally:
+            await _fechar_playwright(page, context, browser)
 
     return resultado

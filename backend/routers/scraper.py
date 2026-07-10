@@ -28,13 +28,16 @@ async def _executar_job(job_id: str, req: ScraperJobRequest):
 
         # Agora usamos await já que o _log virou assíncrono
         await _log(
-            f"Órgão original recebido: '{req.orgao}' -> Tratado para: '{orgao_tratado}'"
+            f"Orgao original recebido: '{req.orgao}' -> tratado para: '{orgao_tratado}'"
         )
         # -------------------------------------------------
 
         empresas = await scraper_service.raspar_tacs_pcd(
             orgao=orgao_tratado,  # <--- Passa o órgão limpo e convertido
             paginas=req.paginas,
+            validar_gemini_sem_regex=req.forcar,
+            buscar_contatos=req.buscar_contatos or req.forcar,
+            persist_callback=fs.salvar_empresa,
             log_callback=_log,  # <--- Enviamos nossa função async tratada
         )
         await fs.atualizar_job(job_id, {"progresso": 60})
@@ -53,7 +56,9 @@ async def _executar_job(job_id: str, req: ScraperJobRequest):
             )
             return
 
-        ids = await fs.salvar_empresas_batch(empresas)
+        ids = [emp.get("id") for emp in empresas if emp.get("id")]
+        if len(ids) != len(empresas):
+            ids = await fs.salvar_empresas_batch(empresas)
         await fs.atualizar_job(job_id, {"progresso": 80})
 
         try:

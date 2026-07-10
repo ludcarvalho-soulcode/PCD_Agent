@@ -113,6 +113,7 @@ class ScraperJobRequest(BaseModel):
     orgao: Optional[str] = None
     paginas: int = 5
     forcar: bool = False
+    buscar_contatos: bool = False
 
 
 class ScraperJobResponse(BaseModel):
